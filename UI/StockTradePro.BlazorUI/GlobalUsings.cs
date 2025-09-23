@@ -1,0 +1,11 @@
+global using Microsoft.AspNetCore.Components;
+global using Microsoft.AspNetCore.Components.Authorization;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.JSInterop;
+global using System.Security.Claims;
+global using System.ComponentModel.DataAnnotations;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
+global using StockTradePro.BlazorUI;
+global using StockTradePro.BlazorUI.Services;
+global using StockTradePro.BlazorUI.Models;

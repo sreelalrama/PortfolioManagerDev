@@ -1,0 +1,6 @@
+@StockTradePro.NotificationService.API_HostAddress = http://localhost:5186
+
+GET {{StockTradePro.NotificationService.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

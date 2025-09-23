@@ -1,0 +1,42 @@
+﻿// Components/Dashboard/QuickActionsComponent.razor - Keep as static
+@namespace StockTradePro.BlazorUI.Components.Dashboard
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Quick Actions</h5>
+    </div>
+    <div class="card-body">
+        <div class="d-grid gap-2">
+            <a href="/portfolios/create" class="btn btn-primary btn-sm">
+                <span class="oi oi-plus me-2"></span>Create Portfolio
+            </a>
+            <a href="/transactions/buy" class="btn btn-success btn-sm">
+                <span class="oi oi-dollar me-2"></span>Buy Stock
+            </a>
+            <a href="/watchlists/create" class="btn btn-info btn-sm">
+                <span class="oi oi-eye me-2"></span>New Watchlist
+            </a>
+            <a href="/stocks" class="btn btn-outline-primary btn-sm">
+                <span class="oi oi-magnifying-glass me-2"></span>Search Stocks
+            </a>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="quick-stats">
+            <h6 class="mb-2">Market Status</h6>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted">Market</small>
+                <span class="badge bg-success">Open</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted">Trading Hours</small>
+                <small>9:30 AM - 4:00 PM EST</small>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">Next Close</small>
+                <small>4:00 PM Today</small>
+            </div>
+        </div>
+    </div>
+</div>

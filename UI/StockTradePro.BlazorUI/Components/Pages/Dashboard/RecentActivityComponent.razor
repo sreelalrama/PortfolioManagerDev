@@ -1,0 +1,79 @@
+﻿// Components/Dashboard/RecentActivityComponent.razor - Pure static data
+@namespace StockTradePro.BlazorUI.Components.Dashboard
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Recent Activity</h5>
+        <small class="badge bg-info">Demo Data</small>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Symbol</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>12/15/2024</td>
+                        <td>AAPL</td>
+                        <td><span class="badge bg-success">BUY</span></td>
+                        <td>10</td>
+                        <td>$185.43</td>
+                        <td>$1,854.30</td>
+                    </tr>
+                    <tr>
+                        <td>12/14/2024</td>
+                        <td>MSFT</td>
+                        <td><span class="badge bg-success">BUY</span></td>
+                        <td>5</td>
+                        <td>$378.52</td>
+                        <td>$1,892.60</td>
+                    </tr>
+                    <tr>
+                        <td>12/13/2024</td>
+                        <td>TSLA</td>
+                        <td><span class="badge bg-danger">SELL</span></td>
+                        <td>2</td>
+                        <td>$245.67</td>
+                        <td>$491.34</td>
+                    </tr>
+                    <tr>
+                        <td>12/12/2024</td>
+                        <td>NVDA</td>
+                        <td><span class="badge bg-success">BUY</span></td>
+                        <td>3</td>
+                        <td>$485.20</td>
+                        <td>$1,455.60</td>
+                    </tr>
+                    <tr>
+                        <td>12/11/2024</td>
+                        <td>GOOGL</td>
+                        <td><span class="badge bg-danger">SELL</span></td>
+                        <td>4</td>
+                        <td>$142.18</td>
+                        <td>$568.72</td>
+                    </tr>
+                    <tr>
+                        <td>12/10/2024</td>
+                        <td>AMD</td>
+                        <td><span class="badge bg-success">BUY</span></td>
+                        <td>8</td>
+                        <td>$154.32</td>
+                        <td>$1,234.56</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="text-center mt-3">
+            <a href="/transactions" class="btn btn-outline-primary">View All Transactions</a>
+        </div>
+    </div>
+</div>

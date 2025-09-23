@@ -1,0 +1,69 @@
+﻿// Components/Dashboard/PortfolioSummaryComponent.razor - Pure static data
+@namespace StockTradePro.BlazorUI.Components.Dashboard
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">My Portfolios</h5>
+        <div>
+            <small class="badge bg-info me-2">Demo Data</small>
+            <a href="/portfolios" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="portfolio-item mb-3 p-3 border rounded">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">Growth Portfolio</h6>
+                    <small class="text-muted">Investment • 8 holdings</small>
+                </div>
+                <div class="text-end">
+                    <div class="h6 mb-1">$125,430.50</div>
+                    <small class="text-success">+$8,234.21 (+7.03%)</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="portfolio-item mb-3 p-3 border rounded">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">Dividend Portfolio</h6>
+                    <small class="text-muted">Income • 12 holdings</small>
+                </div>
+                <div class="text-end">
+                    <div class="h6 mb-1">$87,650.25</div>
+                    <small class="text-success">+$2,156.75 (+2.52%)</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="portfolio-item mb-3 p-3 border rounded">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">Tech Portfolio</h6>
+                    <small class="text-muted">Growth • 6 holdings</small>
+                </div>
+                <div class="text-end">
+                    <div class="h6 mb-1">$64,320.75</div>
+                    <small class="text-danger">-$1,845.30 (-2.79%)</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <div class="row text-center">
+                <div class="col-4">
+                    <div class="h5 mb-1 text-primary">$277K</div>
+                    <small class="text-muted">Total Value</small>
+                </div>
+                <div class="col-4">
+                    <div class="h5 mb-1 text-success">+$8.5K</div>
+                    <small class="text-muted">Total Gain</small>
+                </div>
+                <div class="col-4">
+                    <div class="h5 mb-1 text-info">26</div>
+                    <small class="text-muted">Holdings</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
