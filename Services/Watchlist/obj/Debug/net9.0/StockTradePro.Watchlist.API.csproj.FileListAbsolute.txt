@@ -1,8 +1,0 @@
-C:\Sreelal\Code\Coding\PortfolioApp\StockTradePro\src\Services\Watchlist\obj\Debug\net9.0\StockTradePro.Watchlist.API.csproj.AssemblyReference.cache
-C:\Sreelal\Code\Coding\PortfolioApp\StockTradePro\src\Services\Watchlist\obj\Debug\net9.0\rpswa.dswa.cache.json
-C:\Sreelal\Code\Coding\PortfolioApp\StockTradePro\src\Services\Watchlist\obj\Debug\net9.0\StockTradePro.Watchlist.API.GeneratedMSBuildEditorConfig.editorconfig
-C:\Sreelal\Code\Coding\PortfolioApp\StockTradePro\src\Services\Watchlist\obj\Debug\net9.0\StockTradePro.Watchlist.API.AssemblyInfoInputs.cache
-C:\Sreelal\Code\Coding\PortfolioApp\StockTradePro\src\Services\Watchlist\obj\Debug\net9.0\StockTradePro.Watchlist.API.AssemblyInfo.cs
-C:\Sreelal\Code\Coding\PortfolioApp\StockTradePro\src\Services\Watchlist\obj\Debug\net9.0\StockTradePro.Watchlist.API.csproj.CoreCompileInputs.cache
-C:\Sreelal\Code\Coding\PortfolioApp\StockTradePro\src\Services\Watchlist\obj\Debug\net9.0\StockTradePro.Watchlist.API.MvcApplicationPartsAssemblyInfo.cs
-C:\Sreelal\Code\Coding\PortfolioApp\StockTradePro\src\Services\Watchlist\obj\Debug\net9.0\StockTradePro.Watchlist.API.MvcApplicationPartsAssemblyInfo.cache
