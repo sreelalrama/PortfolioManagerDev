@@ -1,1 +1,563 @@
- 
+@page "/watchlists"
+@using StockTradePro.BlazorUI.Models.Watchlist
+@using StockTradePro.BlazorUI.Services
+@inject IWatchlistService WatchlistService
+@inject NavigationManager Navigation
+
+<PageTitle>Watchlists - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-eye me-2 text-primary"></i>My Watchlists
+                    </h1>
+                    <p class="text-muted mb-0">Track your favorite stocks and set price alerts</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary me-2" @onclick="RefreshData">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="ShowCreateModal">
+                        <i class="fas fa-plus me-1"></i>Create Watchlist
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading watchlists...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading your watchlists...</p>
+        </div>
+    }
+    else if (watchlists?.Any() != true)
+    {
+        <!-- Empty State -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-eye fa-4x text-muted mb-4"></i>
+                        <h3 class="mb-3">No Watchlists Yet</h3>
+                        <p class="text-muted mb-4">
+                            Create your first watchlist to start tracking stocks and get price alerts.
+                        </p>
+                        <button class="btn btn-primary btn-lg" @onclick="ShowCreateModal">
+                            <i class="fas fa-plus me-2"></i>Create Your First Watchlist
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Watchlist Tabs -->
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                    @for (int i = 0; i < watchlists.Count; i++)
+                    {
+                        var watchlist = watchlists[i];
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(i == activeTabIndex ? "active" : "")"
+                                    type="button" role="tab"
+                                    @onclick="() => SetActiveTab(i)">
+                                @watchlist.Name
+                                @if (watchlist.IsDefault)
+                                {
+                                    <i class="fas fa-star text-warning ms-1"></i>
+                                }
+                                <span class="badge bg-secondary ms-2">@watchlist.Items.Count</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            </div>
+
+            @if (activeWatchlist != null)
+            {
+                <div class="card-body">
+                    <!-- Watchlist Actions -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="mb-1">@activeWatchlist.Name</h5>
+                            <p class="text-muted mb-0">@activeWatchlist.Description</p>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-success btn-sm" @onclick="ShowAddStockModal">
+                                <i class="fas fa-plus me-1"></i>Add Stock
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm" @onclick="ShowAlertsModal">
+                                <i class="fas fa-bell me-1"></i>Alerts (@activeWatchlist.PriceAlerts.Count)
+                            </button>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <button class="dropdown-item" @onclick="() => EditWatchlist(activeWatchlist.Id)">
+                                            <i class="fas fa-edit me-2"></i>Edit
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" @onclick="() => DeleteWatchlist(activeWatchlist.Id)">
+                                            <i class="fas fa-trash me-2"></i>Delete
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (activeWatchlist.Items?.Any() != true)
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                            <h5>No Stocks in this Watchlist</h5>
+                            <p class="text-muted mb-3">Add stocks to start tracking their performance.</p>
+                            <button class="btn btn-primary" @onclick="ShowAddStockModal">
+                                <i class="fas fa-plus me-2"></i>Add Your First Stock
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Stock List -->
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Price</th>
+                                        <th>Change</th>
+                                        <th>Change %</th>
+                                        <th>Last Updated</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in activeWatchlist.Items.OrderBy(i => i.SortOrder))
+                                    {
+                                        <tr class="stock-row" @onclick="() => ViewStock(item.Symbol)">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="me-2">
+                                                        <i class="fas fa-grip-vertical text-muted drag-handle"></i>
+                                                    </div>
+                                                    <strong>@item.Symbol</strong>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if (item.CurrentPrice != null)
+                                                {
+                                                    <strong>@item.CurrentPrice.Price.ToString("C2")</strong>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">--</span>
+                                                }
+                                            </td>
+                                            <td class="@(item.CurrentPrice?.Change >= 0 ? "text-success" : "text-danger")">
+                                                @if (item.CurrentPrice != null)
+                                                {
+                                                    @item.CurrentPrice.Change.ToString("+0.00;-0.00;0.00")
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">--</span>
+                                                }
+                                            </td>
+                                            <td class="@(item.CurrentPrice?.ChangePercent >= 0 ? "text-success" : "text-danger")">
+                                                @if (item.CurrentPrice != null)
+                                                {
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas @(item.CurrentPrice.ChangePercent >= 0 ? "fa-arrow-up" : "fa-arrow-down") me-1"></i>
+                                                        @item.CurrentPrice.ChangePercent.ToString("F2")%
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">--</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (item.CurrentPrice != null)
+                                                {
+                                                    <span>@item.CurrentPrice.LastUpdated.ToString("HH:mm")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">--</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group" @onclick:stopPropagation="true">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm"
+                                                            @onclick="() => ViewStock(item.Symbol)" title="View Details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-warning btn-sm"
+                                                            @onclick="() => CreateAlert(item.Symbol)" title="Create Alert">
+                                                        <i class="fas fa-bell"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm"
+                                                            @onclick="() => RemoveFromWatchlist(item.Id)" title="Remove">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Price Alerts Summary -->
+                        @if (activeWatchlist.PriceAlerts?.Any() == true)
+                        {
+                            <div class="mt-4">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-bell me-2"></i>Active Price Alerts
+                                </h6>
+                                <div class="row">
+                                    @foreach (var alert in activeWatchlist.PriceAlerts.Where(a => a.Status == AlertStatus.Active).Take(3))
+                                    {
+                                        <div class="col-md-4 mb-2">
+                                            <div class="card border-warning">
+                                                <div class="card-body p-3">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <strong>@alert.Symbol</strong>
+                                                            <div class="small text-muted">
+                                                                @alert.Type.ToString() @alert.TargetValue.ToString("C2")
+                                                            </div>
+                                                        </div>
+                                                        <button class="btn btn-outline-danger btn-sm"
+                                                                @onclick="() => DeleteAlert(alert.Id)">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Create Watchlist Modal -->
+<div class="modal fade" id="createWatchlistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Watchlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" @bind="newWatchlistName" placeholder="Enter watchlist name" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" rows="3" @bind="newWatchlistDescription"
+                              placeholder="Enter a description (optional)"></textarea>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="newWatchlistIsDefault" />
+                    <label class="form-check-label">Make this my default watchlist</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" @onclick="CreateWatchlist">
+                    <i class="fas fa-plus me-1"></i>Create Watchlist
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Stock Modal -->
+<div class="modal fade" id="addStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Stock to Watchlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Stock Symbol</label>
+                    <input type="text" class="form-control" @bind="newStockSymbol"
+                           placeholder="Enter stock symbol (e.g., AAPL)" style="text-transform: uppercase" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" @onclick="AddStockToWatchlist" disabled="@string.IsNullOrEmpty(newStockSymbol)">
+                    <i class="fas fa-plus me-1"></i>Add Stock
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link {
+        border: none;
+        color: #6c757d;
+    }
+
+        .nav-tabs .nav-link.active {
+            background-color: #fff;
+            border-bottom: 2px solid #007bff;
+            color: #007bff;
+        }
+
+    .stock-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+        .stock-row:hover {
+            background-color: #f8f9fa;
+        }
+
+    .drag-handle {
+        cursor: grab;
+    }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private List<WatchlistDto>? watchlists;
+    private int activeTabIndex = 0;
+    private WatchlistDto? activeWatchlist => watchlists?.ElementAtOrDefault(activeTabIndex);
+
+    // Modal data
+    private string newWatchlistName = "";
+    private string newWatchlistDescription = "";
+    private bool newWatchlistIsDefault = false;
+    private string newStockSymbol = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWatchlists();
+    }
+
+    private async Task LoadWatchlists()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            watchlists = await WatchlistService.GetWatchlistsAsync();
+
+            // Set active tab to default watchlist if exists
+            if (watchlists?.Any() == true)
+            {
+                var defaultIndex = watchlists.FindIndex(w => w.IsDefault);
+                if (defaultIndex >= 0)
+                    activeTabIndex = defaultIndex;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading watchlists: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SetActiveTab(int index)
+    {
+        activeTabIndex = index;
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadWatchlists();
+    }
+
+    private void ShowCreateModal()
+    {
+        newWatchlistName = "";
+        newWatchlistDescription = "";
+        newWatchlistIsDefault = false;
+        // Show modal using JavaScript interop
+    }
+
+    private void ShowAddStockModal()
+    {
+        newStockSymbol = "";
+        // Show modal using JavaScript interop
+    }
+
+    private void ShowAlertsModal()
+    {
+        if (activeWatchlist != null)
+        {
+            Navigation.NavigateTo($"/watchlists/{activeWatchlist.Id}/alerts");
+        }
+    }
+
+    private async Task CreateWatchlist()
+    {
+        if (string.IsNullOrWhiteSpace(newWatchlistName))
+            return;
+
+        try
+        {
+            var createDto = new CreateWatchlistDto
+            {
+                Name = newWatchlistName.Trim(),
+                Description = newWatchlistDescription?.Trim() ?? "",
+                IsDefault = newWatchlistIsDefault
+            };
+
+            var result = await WatchlistService.CreateWatchlistAsync(createDto);
+            if (result != null)
+            {
+                await LoadWatchlists();
+                // Close modal
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating watchlist: {ex.Message}");
+        }
+    }
+
+    private async Task AddStockToWatchlist()
+    {
+        if (activeWatchlist == null || string.IsNullOrWhiteSpace(newStockSymbol))
+            return;
+
+        try
+        {
+            var addDto = new AddWatchlistItemDto
+            {
+                Symbol = newStockSymbol.Trim().ToUpperInvariant(),
+                SortOrder = (activeWatchlist.Items?.Count ?? 0) + 1
+            };
+
+            var result = await WatchlistService.AddWatchlistItemAsync(activeWatchlist.Id, addDto);
+            if (result != null)
+            {
+                await LoadWatchlists();
+                // Close modal
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding stock to watchlist: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveFromWatchlist(int itemId)
+    {
+        if (activeWatchlist == null)
+            return;
+
+        try
+        {
+            var success = await WatchlistService.DeleteWatchlistItemAsync(activeWatchlist.Id, itemId);
+            if (success)
+            {
+                await LoadWatchlists();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing stock from watchlist: {ex.Message}");
+        }
+    }
+
+    private void ViewStock(string symbol)
+    {
+        Navigation.NavigateTo($"/stocks/{symbol}");
+    }
+
+    private void CreateAlert(string symbol)
+    {
+        if (activeWatchlist != null)
+        {
+            Navigation.NavigateTo($"/watchlists/{activeWatchlist.Id}/alerts/create?symbol={symbol}");
+        }
+    }
+
+    private void EditWatchlist(int watchlistId)
+    {
+        Navigation.NavigateTo($"/watchlists/{watchlistId}/edit");
+    }
+
+    private async Task DeleteWatchlist(int watchlistId)
+    {
+        // Add confirmation dialog
+        try
+        {
+            var success = await WatchlistService.DeleteWatchlistAsync(watchlistId);
+            if (success)
+            {
+                await LoadWatchlists();
+                if (activeTabIndex >= watchlists?.Count)
+                {
+                    activeTabIndex = Math.Max(0, (watchlists?.Count ?? 1) - 1);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting watchlist: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteAlert(int alertId)
+    {
+        if (activeWatchlist == null)
+            return;
+
+        try
+        {
+            var success = await WatchlistService.DeletePriceAlertAsync(activeWatchlist.Id, alertId);
+            if (success)
+            {
+                await LoadWatchlists();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting price alert: {ex.Message}");
+        }
+    }
+}

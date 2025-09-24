@@ -1,1 +1,628 @@
- 
+@page "/stocks/{symbol}"
+@using StockTradePro.BlazorUI.Models.Stocks
+@using StockTradePro.BlazorUI.Services
+@inject IStockDataService StockDataService
+@inject NavigationManager Navigation
+
+<PageTitle>@(stock?.CompanyName ?? Symbol) - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading stock details...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading @Symbol data...</p>
+        </div>
+    }
+    else if (stock == null)
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-exclamation-circle fa-4x text-warning mb-3"></i>
+                        <h3>Stock Not Found</h3>
+                        <p class="text-muted mb-4">
+                            We couldn't find stock information for symbol "<strong>@Symbol</strong>".
+                        </p>
+                        <a href="/stocks" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Stock Search
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Stock Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex align-items-center">
+                        @if (!string.IsNullOrEmpty(stock.LogoUrl))
+                        {
+                            <img src="@stock.LogoUrl" alt="@stock.Symbol" class="company-logo-large me-3"
+                                 onerror="this.style.display='none'" />
+                        }
+                        <div>
+                            <h1 class="h2 mb-1">
+                                @stock.CompanyName
+                                <span class="text-muted">(@stock.Symbol)</span>
+                            </h1>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-secondary me-2">@stock.Exchange</span>
+                                <span class="badge bg-info me-2">@stock.Sector</span>
+                                <span class="badge bg-light text-dark">@stock.Industry</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" @onclick="RefreshData">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                        <a href="/stocks" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Stocks
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Price Information -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-4">
+                                <div class="price-display">
+                                    <div class="current-price">
+                                        @stock.CurrentPrice.ToString("C2")
+                                    </div>
+                                    <div class="price-change @(stock.PriceChange >= 0 ? "text-success" : "text-danger")">
+                                        <i class="fas @(stock.PriceChange >= 0 ? "fa-arrow-up" : "fa-arrow-down") me-1"></i>
+                                        @stock.PriceChange.ToString("+0.00;-0.00;0.00")
+                                        (@stock.PriceChangePercent.ToString("+0.00;-0.00;0.00")%)
+                                    </div>
+                                    <small class="text-muted">Last updated: @stock.LastUpdated.ToString("HH:mm:ss")</small>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="row text-center">
+                                    <div class="col-3">
+                                        <div class="stat-item">
+                                            <div class="stat-value">@stock.Volume.ToString("N0")</div>
+                                            <div class="stat-label">Volume</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="stat-item">
+                                            <div class="stat-value">@FormatMarketCap(stock.MarketCap)</div>
+                                            <div class="stat-label">Market Cap</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="stat-item">
+                                            <div class="stat-value">@currentPrice?.HighPrice.ToString("C2")</div>
+                                            <div class="stat-label">Day High</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="stat-item">
+                                            <div class="stat-value">@currentPrice?.LowPrice.ToString("C2")</div>
+                                            <div class="stat-label">Day Low</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Main Content -->
+            <div class="col-lg-8">
+                <!-- Price Chart Placeholder -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>Price Chart
+                            </h5>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary @(selectedPeriod == "1D" ? "active" : "")"
+                                        @onclick="SetPeriod1D">
+                                    1D
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary @(selectedPeriod == "5D" ? "active" : "")"
+                                        @onclick="SetPeriod5D">
+                                    5D
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary @(selectedPeriod == "1M" ? "active" : "")"
+                                        @onclick="SetPeriod1M">
+                                    1M
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary @(selectedPeriod == "3M" ? "active" : "")"
+                                        @onclick="SetPeriod3M">
+                                    3M
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary @(selectedPeriod == "1Y" ? "active" : "")"
+                                        @onclick="SetPeriod1Y">
+                                    1Y
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Chart would go here - using placeholder for now -->
+                        <div class="chart-placeholder">
+                            <div class="text-center py-5">
+                                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                                <h5>Interactive Price Chart</h5>
+                                <p class="text-muted">
+                                    Chart showing @stock.Symbol price movement for @selectedPeriod period
+                                </p>
+                                @if (priceHistory?.Any() == true)
+                                {
+                                    <div class="row mt-4">
+                                        <div class="col-md-3">
+                                            <div class="small text-muted">Period Start</div>
+                                            <strong>@priceHistory.First().ClosePrice.ToString("C2")</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="small text-muted">Period End</div>
+                                            <strong>@priceHistory.Last().ClosePrice.ToString("C2")</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="small text-muted">Period High</div>
+                                            <strong>@priceHistory.Max(p => p.HighPrice).ToString("C2")</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="small text-muted">Period Low</div>
+                                            <strong>@priceHistory.Min(p => p.LowPrice).ToString("C2")</strong>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Company Information -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-building me-2"></i>Company Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <td class="text-muted">Exchange:</td>
+                                        <td><strong>@stock.Exchange</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Sector:</td>
+                                        <td><strong>@stock.Sector</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Industry:</td>
+                                        <td><strong>@stock.Industry</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Market Cap:</td>
+                                        <td><strong>@FormatMarketCap(stock.MarketCap)</strong></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                @if (!string.IsNullOrEmpty(stock.Website))
+                                {
+                                    <div class="mb-3">
+                                        <strong>Website:</strong>
+                                        <a href="@stock.Website" target="_blank" class="ms-2">
+                                            @stock.Website
+                                            <i class="fas fa-external-link-alt ms-1"></i>
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(stock.Description))
+                        {
+                            <div class="mt-3">
+                                <strong>Description:</strong>
+                                <p class="mt-2">@stock.Description</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Quick Actions -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-bolt me-2"></i>Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" @onclick="() => BuyStock(stock.Symbol)">
+                                <i class="fas fa-shopping-cart me-2"></i>Buy @stock.Symbol
+                            </button>
+                            <button class="btn btn-primary" @onclick="() => AddToWatchlist(stock.Symbol)">
+                                <i class="fas fa-eye me-2"></i>Add to Watchlist
+                            </button>
+                            <button class="btn btn-warning" @onclick="() => CreatePriceAlert(stock.Symbol)">
+                                <i class="fas fa-bell me-2"></i>Create Price Alert
+                            </button>
+                            <button class="btn btn-info" @onclick="() => ViewSimilarStocks(stock.Sector)">
+                                <i class="fas fa-search me-2"></i>Similar Stocks
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Statistics -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Key Statistics
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="key-stats">
+                            <div class="stat-row">
+                                <span class="stat-label">Current Price</span>
+                                <span class="stat-value">@stock.CurrentPrice.ToString("C2")</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Day Change</span>
+                                <span class="stat-value @(stock.PriceChange >= 0 ? "text-success" : "text-danger")">
+                                    @stock.PriceChange.ToString("+0.00;-0.00;0.00")
+                                </span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Day Change %</span>
+                                <span class="stat-value @(stock.PriceChangePercent >= 0 ? "text-success" : "text-danger")">
+                                    @stock.PriceChangePercent.ToString("+0.00;-0.00;0.00")%
+                                </span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Volume</span>
+                                <span class="stat-value">@stock.Volume.ToString("N0")</span>
+                            </div>
+                            @if (currentPrice != null)
+                            {
+                                <div class="stat-row">
+                                    <span class="stat-label">Open</span>
+                                    <span class="stat-value">@currentPrice.OpenPrice.ToString("C2")</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-label">High</span>
+                                    <span class="stat-value">@currentPrice.HighPrice.ToString("C2")</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-label">Low</span>
+                                    <span class="stat-value">@currentPrice.LowPrice.ToString("C2")</span>
+                                </div>
+                            }
+                            <div class="stat-row">
+                                <span class="stat-label">Market Cap</span>
+                                <span class="stat-value">@FormatMarketCap(stock.MarketCap)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent News Placeholder -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-newspaper me-2"></i>Recent News
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="news-item mb-3">
+                            <div class="news-title">
+                                <a href="#" class="text-decoration-none">
+                                    @stock.CompanyName Reports Strong Q4 Earnings
+                                </a>
+                            </div>
+                            <div class="news-meta">
+                                <small class="text-muted">2 hours ago • MarketWatch</small>
+                            </div>
+                        </div>
+                        <div class="news-item mb-3">
+                            <div class="news-title">
+                                <a href="#" class="text-decoration-none">
+                                    Analyst Upgrades @stock.Symbol to Buy Rating
+                                </a>
+                            </div>
+                            <div class="news-meta">
+                                <small class="text-muted">5 hours ago • Bloomberg</small>
+                            </div>
+                        </div>
+                        <div class="news-item">
+                            <div class="news-title">
+                                <a href="#" class="text-decoration-none">
+                                    @stock.Sector Sector Shows Momentum in 2024
+                                </a>
+                            </div>
+                            <div class="news-meta">
+                                <small class="text-muted">1 day ago • Reuters</small>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="#" class="btn btn-outline-primary btn-sm">
+                                View All News
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .company-logo-large {
+        width: 64px;
+        height: 64px;
+        border-radius: 8px;
+        object-fit: contain;
+        background: #f8f9fa;
+        padding: 8px;
+    }
+
+    .price-display {
+        text-align: center;
+    }
+
+    .current-price {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #333;
+        line-height: 1;
+    }
+
+    .price-change {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0.5rem 0;
+    }
+
+    .stat-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #333;
+        display: block;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        display: block;
+        margin-top: 0.25rem;
+    }
+
+    .chart-placeholder {
+        background: #f8f9fa;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        min-height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .key-stats .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+        .key-stats .stat-row:last-child {
+            border-bottom: none;
+        }
+
+    .key-stats .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .key-stats .stat-value {
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .news-item {
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+        .news-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+    .news-title {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+        .news-title a {
+            color: #333;
+        }
+
+            .news-title a:hover {
+                color: #007bff;
+            }
+
+    .btn-group-sm .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    @@media (max-width: 767.98px) {
+        .current-price {
+            font-size: 2rem;
+        }
+
+        .price-change {
+            font-size: 1rem;
+        }
+
+        .company-logo-large {
+            width: 48px;
+            height: 48px;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public string Symbol { get; set; } = "";
+
+    private bool isLoading = true;
+    private StockDto? stock;
+    private StockPriceDto? currentPrice;
+    private List<StockPriceDto>? priceHistory;
+    private string selectedPeriod = "1D";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStockData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(Symbol))
+        {
+            await LoadStockData();
+        }
+    }
+
+    private async Task LoadStockData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            // Load stock basic information
+            stock = await StockDataService.GetStockAsync(Symbol);
+
+            if (stock != null)
+            {
+                // Load current price data
+                currentPrice = await StockDataService.GetCurrentPriceAsync(Symbol);
+
+                // Load price history for chart
+                await LoadPriceHistory();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading stock data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadPriceHistory()
+    {
+        try
+        {
+            DateTime fromDate = selectedPeriod switch
+            {
+                "1D" => DateTime.Now.AddDays(-1),
+                "5D" => DateTime.Now.AddDays(-5),
+                "1M" => DateTime.Now.AddMonths(-1),
+                "3M" => DateTime.Now.AddMonths(-3),
+                "1Y" => DateTime.Now.AddYears(-1),
+                _ => DateTime.Now.AddDays(-1)
+            };
+
+            priceHistory = await StockDataService.GetPricesAsync(Symbol, fromDate, DateTime.Now);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading price history: {ex.Message}");
+        }
+    }
+
+    private async Task SetPeriod(string period)
+    {
+        selectedPeriod = period;
+        await LoadPriceHistory();
+        StateHasChanged();
+    }
+
+    private async Task SetPeriod1D() => await SetPeriod("1D");
+    private async Task SetPeriod5D() => await SetPeriod("5D");
+    private async Task SetPeriod1M() => await SetPeriod("1M");
+    private async Task SetPeriod3M() => await SetPeriod("3M");
+    private async Task SetPeriod1Y() => await SetPeriod("1Y");
+
+    private async Task RefreshData()
+    {
+        await LoadStockData();
+    }
+
+    private void BuyStock(string symbol)
+    {
+        Navigation.NavigateTo($"/transactions/buy?symbol={symbol}");
+    }
+
+    private void AddToWatchlist(string symbol)
+    {
+        Navigation.NavigateTo($"/watchlists/add?symbol={symbol}");
+    }
+
+    private void CreatePriceAlert(string symbol)
+    {
+        Navigation.NavigateTo($"/watchlists/alerts/create?symbol={symbol}");
+    }
+
+    private void ViewSimilarStocks(string sector)
+    {
+        Navigation.NavigateTo($"/stocks?sector={Uri.EscapeDataString(sector)}");
+    }
+
+    private string FormatMarketCap(double marketCap)
+    {
+        if (marketCap >= 1_000_000_000_000)
+            return $"${marketCap / 1_000_000_000_000:F1}T";
+        else if (marketCap >= 1_000_000_000)
+            return $"${marketCap / 1_000_000_000:F1}B";
+        else if (marketCap >= 1_000_000)
+            return $"${marketCap / 1_000_000:F1}M";
+        else
+            return $"${marketCap:F0}";
+    }
+}

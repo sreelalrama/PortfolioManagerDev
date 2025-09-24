@@ -1,1 +1,443 @@
- 
+@page "/stocks"
+@using StockTradePro.BlazorUI.Models.Stocks
+@using StockTradePro.BlazorUI.Services
+@inject IStockDataService StockDataService
+@inject NavigationManager Navigation
+
+<PageTitle>Stocks - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>Stock Market
+                    </h1>
+                    <p class="text-muted mb-0">Explore and analyze stocks</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="RefreshData">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-lg-4 col-md-6">
+                    <label class="form-label">Search Stocks</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" placeholder="Symbol or company name..."
+                               @bind="searchQuery" @onkeypress="HandleKeyPress" />
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-3">
+                    <label class="form-label">Sector</label>
+                    <select class="form-select" @bind="selectedSector">
+                        <option value="">All Sectors</option>
+                        @if (sectors?.Any() == true)
+                        {
+                            @foreach (var sector in sectors)
+                            {
+                                <option value="@sector">@sector</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-3">
+                    <label class="form-label">Exchange</label>
+                    <select class="form-select" @bind="selectedExchange">
+                        <option value="">All Exchanges</option>
+                        @if (exchanges?.Any() == true)
+                        {
+                            @foreach (var exchange in exchanges)
+                            {
+                                <option value="@exchange">@exchange</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-6">
+                    <label class="form-label">Sort By</label>
+                    <select class="form-select" @bind="sortBy">
+                        <option value="symbol">Symbol</option>
+                        <option value="name">Company Name</option>
+                        <option value="price">Price</option>
+                        <option value="change">Change %</option>
+                        <option value="volume">Volume</option>
+                        <option value="marketcap">Market Cap</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-6">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" @onclick="SearchStocks">
+                            <i class="fas fa-search me-1"></i>Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading stocks...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading stock data...</p>
+        </div>
+    }
+    else if (stocks?.Any() != true)
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h4>No Stocks Found</h4>
+                <p class="text-muted">Try adjusting your search criteria or filters.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">@gainersCount</h5>
+                                <p class="card-text">Gainers</p>
+                            </div>
+                            <i class="fas fa-arrow-up fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">@losersCount</h5>
+                                <p class="card-text">Losers</p>
+                            </div>
+                            <i class="fas fa-arrow-down fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">@totalStocks</h5>
+                                <p class="card-text">Total Stocks</p>
+                            </div>
+                            <i class="fas fa-chart-bar fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">@averageVolume.ToString("N0")</h5>
+                                <p class="card-text">Avg Volume</p>
+                            </div>
+                            <i class="fas fa-chart-area fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Table -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th scope="col">Symbol</th>
+                                <th scope="col">Company</th>
+                                <th scope="col">Price</th>
+                                <th scope="col">Change</th>
+                                <th scope="col">Change %</th>
+                                <th scope="col">Volume</th>
+                                <th scope="col">Market Cap</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var stock in stocks)
+                            {
+                                <tr class="stock-row" @onclick="() => ViewStock(stock.Symbol)">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            @if (!string.IsNullOrEmpty(stock.LogoUrl))
+                                            {
+                                                <img src="@stock.LogoUrl" alt="@stock.Symbol" class="me-2 company-logo"
+                                                     onerror="this.style.display='none'" />
+                                            }
+                                            <div>
+                                                <strong>@stock.Symbol</strong>
+                                                <div class="small text-muted">@stock.Exchange</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div class="fw-bold">@stock.CompanyName</div>
+                                            <small class="text-muted">@stock.Sector</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>@stock.CurrentPrice.ToString("C2")</strong>
+                                    </td>
+                                    <td class="@(stock.PriceChange >= 0 ? "text-success" : "text-danger")">
+                                        @stock.PriceChange.ToString("+0.00;-0.00;0.00")
+                                    </td>
+                                    <td class="@(stock.PriceChangePercent >= 0 ? "text-success" : "text-danger")">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas @(stock.PriceChangePercent >= 0 ? "fa-arrow-up" : "fa-arrow-down") me-1"></i>
+                                            @stock.PriceChangePercent.ToString("F2")%
+                                        </div>
+                                    </td>
+                                    <td>@stock.Volume.ToString("N0")</td>
+                                    <td>@FormatMarketCap(stock.MarketCap)</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group" @onclick:stopPropagation="true">
+                                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                                    @onclick="() => ViewStock(stock.Symbol)" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success btn-sm"
+                                                    @onclick="() => AddToWatchlist(stock.Symbol)" title="Add to Watchlist">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info btn-sm"
+                                                    @onclick="() => BuyStock(stock.Symbol)" title="Buy Stock">
+                                                <i class="fas fa-shopping-cart"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages > 1)
+        {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <nav aria-label="Stock pagination">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => LoadPage(currentPage - 1)" disabled="@(currentPage <= 1)">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                            </li>
+
+                            @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                            {
+                                <li class="page-item @(i == currentPage ? "active" : "")">
+                                    <button class="page-link" @onclick="() => LoadPage(i)">@i</button>
+                                </li>
+                            }
+
+                            <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => LoadPage(currentPage + 1)" disabled="@(currentPage >= totalPages)">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+
+                    <div class="text-center text-muted">
+                        Showing @((currentPage - 1) * pageSize + 1) to @Math.Min(currentPage * pageSize, totalStocks) of @totalStocks stocks
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .stock-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+        .stock-row:hover {
+            background-color: #f8f9fa;
+        }
+
+    .company-logo {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+    }
+
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private List<StockDto>? stocks;
+    private List<string>? sectors;
+    private List<string>? exchanges;
+
+    private string searchQuery = "";
+    private string selectedSector = "";
+    private string selectedExchange = "";
+    private string sortBy = "symbol";
+    private string sortOrder = "asc";
+
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalPages = 1;
+    private int totalStocks = 0;
+
+    // Quick stats
+    private int gainersCount = 0;
+    private int losersCount = 0;
+    private long averageVolume = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFilters();
+        await SearchStocks();
+    }
+
+    private async Task LoadFilters()
+    {
+        try
+        {
+            sectors = await StockDataService.GetSectorsAsync();
+            exchanges = await StockDataService.GetExchangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading filters: {ex.Message}");
+        }
+    }
+
+    private async Task SearchStocks()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var searchDto = new StockSearchDto
+            {
+                Query = searchQuery,
+                Sector = selectedSector,
+                Exchange = selectedExchange,
+                SortBy = sortBy,
+                SortOrder = sortOrder,
+                Page = currentPage,
+                PageSize = pageSize
+            };
+
+            var result = await StockDataService.GetStocksAsync(searchDto);
+            stocks = result.Data;
+            totalPages = result.TotalPages;
+            totalStocks = result.TotalRecords;
+
+            // Calculate quick stats
+            if (stocks?.Any() == true)
+            {
+                gainersCount = stocks.Count(s => s.PriceChangePercent > 0);
+                losersCount = stocks.Count(s => s.PriceChangePercent < 0);
+                averageVolume = (long)stocks.Average(s => s.Volume);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching stocks: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadPage(int page)
+    {
+        if (page >= 1 && page <= totalPages && page != currentPage)
+        {
+            currentPage = page;
+            await SearchStocks();
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            currentPage = 1; // Reset to first page
+            await SearchStocks();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await SearchStocks();
+    }
+
+    private void ViewStock(string symbol)
+    {
+        Navigation.NavigateTo($"/stocks/{symbol}");
+    }
+
+    private void AddToWatchlist(string symbol)
+    {
+        Navigation.NavigateTo($"/watchlists/add?symbol={symbol}");
+    }
+
+    private void BuyStock(string symbol)
+    {
+        Navigation.NavigateTo($"/transactions/buy?symbol={symbol}");
+    }
+
+    private string FormatMarketCap(double marketCap)
+    {
+        if (marketCap >= 1_000_000_000_000)
+            return $"${marketCap / 1_000_000_000_000:F1}T";
+        else if (marketCap >= 1_000_000_000)
+            return $"${marketCap / 1_000_000_000:F1}B";
+        else if (marketCap >= 1_000_000)
+            return $"${marketCap / 1_000_000:F1}M";
+        else
+            return $"${marketCap:F0}";
+    }
+}

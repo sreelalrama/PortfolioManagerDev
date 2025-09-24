@@ -1,39 +1,131 @@
-﻿// Pages/Index.razor - Simplified with no API calls
-@page "/"
+﻿@page "/"
 @using StockTradePro.BlazorUI.Components.Dashboard
+@using StockTradePro.BlazorUI.Models.Portfolio
+@using StockTradePro.BlazorUI.Services
+@inject IPortfolioService PortfolioService
+@inject IStockDataService StockDataService
+@inject IWatchlistService WatchlistService
 
 <PageTitle>Dashboard - StockTradePro</PageTitle>
 
 <div class="dashboard">
+    <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-1">Dashboard</h1>
+                    <h1 class="h2 mb-1 text-primary">
+                        <i class="fas fa-chart-line me-2"></i>Dashboard
+                    </h1>
                     <p class="text-muted mb-0">Welcome back! Here's your portfolio overview.</p>
                 </div>
-                <div>
-                    <span class="text-muted small">Last updated: @DateTime.Now.ToString("MMM dd, yyyy HH:mm")</span>
+                <div class="text-end">
+                    <div class="badge bg-success mb-1">Market Open</div>
+                    <div class="small text-muted">Last updated: @DateTime.Now.ToString("MMM dd, yyyy HH:mm")</div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Portfolio Summary Cards -->
+    <div class="row mb-4">
+        @if (portfolioSummaries?.Any() == true)
+        {
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="card-title">@portfolioSummaries.Count</h4>
+                                <p class="card-text">Total Portfolios</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-briefcase fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="card-title">@totalValue.ToString("C0")</h4>
+                                <p class="card-text">Total Value</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card @(totalGainLoss >= 0 ? "bg-success" : "bg-danger") text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="card-title">@totalGainLoss.ToString("C0")</h4>
+                                <p class="card-text">Total Gain/Loss</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas @(totalGainLoss >= 0 ? "fa-arrow-up" : "fa-arrow-down") fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-info text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="card-title">@totalHoldings</h4>
+                                <p class="card-text">Total Holdings</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-chart-pie fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h4>Welcome to StockTradePro</h4>
+                        <p class="text-muted mb-3">Start by creating your first portfolio to track your investments.</p>
+                        <a href="/portfolios/create" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create Your First Portfolio
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
     <div class="row">
+        <!-- Main Content -->
         <div class="col-lg-8">
             <div class="row">
+                <!-- Market Overview -->
                 <div class="col-12 mb-4">
                     <MarketOverviewComponent />
                 </div>
-            </div>
-            
-            <div class="row">
+                
+                <!-- Recent Activity -->
                 <div class="col-12">
                     <RecentActivityComponent />
                 </div>
             </div>
         </div>
         
+        <!-- Sidebar -->
         <div class="col-lg-4">
             <div class="mb-4">
                 <PortfolioSummaryComponent />
@@ -49,3 +141,58 @@
         </div>
     </div>
 </div>
+
+@if (isLoading)
+{
+    <div class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75" style="z-index: 9999;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isLoading = true;
+    private List<PortfolioSummaryDto>? portfolioSummaries;
+    private double totalValue = 0;
+    private double totalGainLoss = 0;
+    private int totalHoldings = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            // Small delay to show loading state
+            await Task.Delay(100);
+
+            // Load portfolio summaries
+            var portfolioResult = await PortfolioService.GetPortfoliosAsync(1, 50);
+            portfolioSummaries = portfolioResult.Data;
+
+            // Calculate totals
+            if (portfolioSummaries?.Any() == true)
+            {
+                totalValue = portfolioSummaries.Sum(p => p.CurrentValue);
+                totalGainLoss = portfolioSummaries.Sum(p => p.TotalGainLoss);
+                totalHoldings = portfolioSummaries.Sum(p => p.TotalHoldings);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,52 +1,324 @@
-@* Shared/NavMenu.razor *@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">StockTradePro</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+@using StockTradePro.BlazorUI.Services
+@inject INotificationService NotificationService
+
+<div class="sidebar d-flex flex-column">
+    <!-- Brand Header -->
+    <div class="brand-header">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="">
+                <i class="fas fa-chart-line me-2"></i>
+                <span class="fw-bold">StockTradePro</span>
+            </a>
+            <button title="Toggle navigation" class="navbar-toggler d-lg-none" @onclick="ToggleNavMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Navigation Menu -->
+    <div class="@NavMenuCssClass nav-scrollable flex-grow-1">
+        <nav class="flex-column p-3">
+            <!-- Dashboard -->
+            <div class="nav-item mb-2">
+                <NavLink class="nav-link d-flex align-items-center" href="" Match="NavLinkMatch.All">
+                    <i class="fas fa-tachometer-alt nav-icon"></i>
+                    <span>Dashboard</span>
+                </NavLink>
+            </div>
+
+            <!-- Portfolios -->
+            <div class="nav-item mb-2">
+                <NavLink class="nav-link d-flex align-items-center" href="portfolios">
+                    <i class="fas fa-briefcase nav-icon"></i>
+                    <span>Portfolios</span>
+                </NavLink>
+            </div>
+
+            <!-- Stocks -->
+            <div class="nav-item mb-2">
+                <NavLink class="nav-link d-flex align-items-center" href="stocks">
+                    <i class="fas fa-chart-line nav-icon"></i>
+                    <span>Stocks</span>
+                </NavLink>
+            </div>
+
+            <!-- Watchlists -->
+            <div class="nav-item mb-2">
+                <NavLink class="nav-link d-flex align-items-center" href="watchlists">
+                    <i class="fas fa-eye nav-icon"></i>
+                    <span>Watchlists</span>
+                </NavLink>
+            </div>
+
+            <!-- Notifications -->
+            <div class="nav-item mb-2">
+                <NavLink class="nav-link d-flex align-items-center position-relative" href="notifications">
+                    <i class="fas fa-bell nav-icon"></i>
+                    <span>Notifications</span>
+                    @if (unreadCount > 0)
+                    {
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge">
+                            @(unreadCount > 99 ? "99+" : unreadCount.ToString())
+                        </span>
+                    }
+                </NavLink>
+            </div>
+
+            <!-- Divider -->
+            <hr class="nav-divider">
+
+            <!-- Quick Actions Section -->
+            <div class="nav-section-header">
+                <small class="text-muted fw-bold">QUICK ACTIONS</small>
+            </div>
+
+            <div class="nav-item mb-2">
+                <a class="nav-link d-flex align-items-center quick-action" href="/portfolios/create">
+                    <i class="fas fa-plus nav-icon text-success"></i>
+                    <span>Create Portfolio</span>
+                </a>
+            </div>
+
+            <div class="nav-item mb-2">
+                <a class="nav-link d-flex align-items-center quick-action" href="/transactions/buy">
+                    <i class="fas fa-shopping-cart nav-icon text-primary"></i>
+                    <span>Buy Stock</span>
+                </a>
+            </div>
+
+            <div class="nav-item mb-2">
+                <a class="nav-link d-flex align-items-center quick-action" href="/watchlists/create">
+                    <i class="fas fa-eye nav-icon text-info"></i>
+                    <span>New Watchlist</span>
+                </a>
+            </div>
+
+            <!-- Divider -->
+            <hr class="nav-divider">
+
+            <!-- Market Status -->
+            <div class="nav-section-header">
+                <small class="text-muted fw-bold">MARKET STATUS</small>
+            </div>
+
+            <div class="market-status-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small">Market</span>
+                    <span class="badge bg-success">Open</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small">S&P 500</span>
+                    <span class="small text-success">+0.52%</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small">Next Close</span>
+                    <span class="small">4:00 PM EST</span>
+                </div>
+            </div>
+
+            <!-- Account Section (Bottom) -->
+            <div class="mt-auto">
+                <hr class="nav-divider">
+
+                <div class="nav-item mb-2">
+                    <a class="nav-link d-flex align-items-center" href="/profile">
+                        <i class="fas fa-user nav-icon"></i>
+                        <span>Profile</span>
+                    </a>
+                </div>
+
+                <div class="nav-item mb-2">
+                    <a class="nav-link d-flex align-items-center" href="/settings">
+                        <i class="fas fa-cog nav-icon"></i>
+                        <span>Settings</span>
+                    </a>
+                </div>
+
+                <div class="nav-item">
+                    <button class="nav-link d-flex align-items-center w-100 border-0 bg-transparent text-start" @onclick="HandleLogout">
+                        <i class="fas fa-sign-out-alt nav-icon"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
     </div>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="CollapseNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Dashboard
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="stocks">
-                <span class="oi oi-graph" aria-hidden="true"></span> Stocks
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="portfolios">
-                <span class="oi oi-briefcase" aria-hidden="true"></span> Portfolios
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="watchlists">
-                <span class="oi oi-eye" aria-hidden="true"></span> Watchlists
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="notifications">
-                <span class="oi oi-bell" aria-hidden="true"></span> Notifications
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="settings">
-                <span class="oi oi-cog" aria-hidden="true"></span> Settings
-            </NavLink>
-        </div>
-    </nav>
-</div>
+<style>
+    .sidebar {
+        background: linear-gradient(180deg, #1a365d 0%, #2d5a87 50%, #1a365d 100%);
+        min-height: 100vh;
+        width: 280px;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+    }
+
+    .brand-header {
+        background: rgba(0,0,0,0.2);
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .navbar-brand {
+        color: white !important;
+        font-size: 1.25rem;
+        text-decoration: none;
+        padding: 0 1rem;
+    }
+
+        .navbar-brand:hover {
+            color: #e3f2fd !important;
+        }
+
+    .navbar-toggler {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+    }
+
+    .nav-scrollable {
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.3) transparent;
+    }
+
+        .nav-scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .nav-scrollable::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .nav-scrollable::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+        }
+
+    .nav-link {
+        color: rgba(255,255,255,0.85) !important;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin: 0;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        border: none;
+        background: none;
+    }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white !important;
+            transform: translateX(4px);
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.15);
+            color: white !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+    .nav-icon {
+        width: 20px;
+        margin-right: 0.75rem;
+        text-align: center;
+    }
+
+    .nav-divider {
+        border-color: rgba(255,255,255,0.15);
+        margin: 1.5rem 0;
+    }
+
+    .nav-section-header {
+        margin-bottom: 0.75rem;
+        padding: 0 1rem;
+    }
+
+    .quick-action {
+        opacity: 0.9;
+    }
+
+        .quick-action:hover {
+            opacity: 1;
+        }
+
+    .market-status-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin: 0 1rem;
+        color: rgba(255,255,255,0.9);
+    }
+
+    .notification-badge {
+        font-size: 0.6em;
+        margin-left: -10px;
+        margin-top: -5px;
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 991.98px) {
+        .sidebar {
+            width: 100%;
+            position: fixed;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+        .collapse:not(.show) {
+            display: none;
+        }
+    }
+
+    @@media (min-width: 992px) {
+        .navbar-toggler {
+            display: none;
+        }
+
+        .collapse {
+            display: block !important;
+        }
+    }
+
+    /* Main content adjustment when sidebar is visible */
+    @@media (min-width: 992px) {
+        .main-content {
+            margin-left: 280px;
+        }
+    }
+</style>
 
 @code {
     private bool collapseNavMenu = true;
+    private int unreadCount = 0;
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : "collapse show";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUnreadCount();
+    }
+
+    private async Task LoadUnreadCount()
+    {
+        try
+        {
+            unreadCount = await NotificationService.GetUnreadCountAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading unread count: {ex.Message}");
+        }
+    }
 
     private void ToggleNavMenu()
     {
@@ -56,5 +328,19 @@
     private void CollapseNavMenu()
     {
         collapseNavMenu = true;
+    }
+
+    private async Task HandleLogout()
+    {
+        // Implement logout logic here
+        Console.WriteLine("Logout clicked");
+        // Example: await AuthService.LogoutAsync();
+        // Navigation.NavigateTo("/login");
+    }
+
+    // Method to refresh unread count (can be called from other components)
+    public async Task RefreshNotificationCount()
+    {
+        await LoadUnreadCount();
     }
 }

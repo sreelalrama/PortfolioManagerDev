@@ -1,1 +1,599 @@
- 
+@page "/notifications"
+@using StockTradePro.BlazorUI.Models.Notifications
+@using StockTradePro.BlazorUI.Services
+@inject INotificationService NotificationService
+
+<PageTitle>Notifications - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-bell me-2 text-primary"></i>Notifications
+                        @if (unreadCount > 0)
+                        {
+                            <span class="badge bg-danger">@unreadCount</span>
+                        }
+                    </h1>
+                    <p class="text-muted mb-0">Stay updated with your portfolio and market alerts</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary me-2" @onclick="RefreshNotifications">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                    @if (unreadCount > 0)
+                    {
+                        <button type="button" class="btn btn-outline-primary me-2" @onclick="MarkAllAsRead">
+                            <i class="fas fa-check-double me-1"></i>Mark All Read
+                        </button>
+                    }
+                    <a href="/notifications/preferences" class="btn btn-outline-info">
+                        <i class="fas fa-cog me-1"></i>Preferences
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="card mb-4">
+        <div class="card-body p-0">
+            <ul class="nav nav-pills nav-fill">
+                <li class="nav-item">
+                    <button class="nav-link @(selectedFilter == "all" ? "active" : "")"
+                            @onclick="SetFilterAll">
+                        <i class="fas fa-list me-2"></i>All (@totalNotifications)
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(selectedFilter == "unread" ? "active" : "")"
+                            @onclick="SetFilterUnread">
+                        <i class="fas fa-envelope me-2"></i>Unread (@unreadCount)
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(selectedFilter == "price-alerts" ? "active" : "")"
+                            @onclick="SetFilterPriceAlerts">
+                        <i class="fas fa-bell me-2"></i>Price Alerts (@priceAlertCount)
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(selectedFilter == "portfolio" ? "active" : "")"
+                            @onclick="SetFilterPortfolio">
+                        <i class="fas fa-chart-line me-2"></i>Portfolio (@portfolioCount)
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(selectedFilter == "system" ? "active" : "")"
+                            @onclick="SetFilterSystem">
+                        <i class="fas fa-info-circle me-2"></i>System (@systemCount)
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading notifications...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading notifications...</p>
+        </div>
+    }
+    else if (filteredNotifications?.Any() != true)
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
+                <h4>No Notifications</h4>
+                <p class="text-muted">
+                    @if (selectedFilter == "all")
+                    {
+                        <span>You don't have any notifications yet.</span>
+                    }
+                    else
+                    {
+                        <span>No @selectedFilter notifications found.</span>
+                    }
+                </p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Notifications List -->
+        <div class="row">
+            <div class="col-12">
+                @foreach (var notification in filteredNotifications)
+                {
+                    <div class="card mb-3 notification-card @(notification.Status == NotificationStatus.Sent ? "unread" : "")"
+                         @onclick="() => MarkAsRead(notification.Id)">
+                        <div class="card-body">
+                            <div class="d-flex">
+                                <!-- Notification Icon -->
+                                <div class="flex-shrink-0 me-3">
+                                    <div class="notification-icon @GetNotificationIconClass(notification.Type)">
+                                        <i class="fas @GetNotificationIcon(notification.Type)"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Notification Content -->
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0 notification-title">@notification.Title</h6>
+                                        <div class="d-flex align-items-center">
+                                            @if (notification.Status == NotificationStatus.Sent)
+                                            {
+                                                <span class="badge bg-primary me-2">New</span>
+                                            }
+                                            <small class="text-muted">@GetTimeAgo(notification.CreatedAt)</small>
+                                        </div>
+                                    </div>
+
+                                    <p class="mb-2 text-muted notification-message">@notification.Message</p>
+
+                                    <!-- Notification Type Badge -->
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="badge @GetNotificationBadgeClass(notification.Type)">
+                                                @notification.Type.ToString().Replace("_", " ")
+                                            </span>
+                                            <span class="badge bg-light text-dark ms-1">
+                                                @notification.Method.ToString()
+                                            </span>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="btn-group btn-group-sm" @onclick:stopPropagation="true">
+                                            @if (notification.Status == NotificationStatus.Sent)
+                                            {
+                                                <button class="btn btn-outline-primary btn-sm"
+                                                        @onclick="() => MarkAsRead(notification.Id)"
+                                                        title="Mark as read">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            }
+                                            <button class="btn btn-outline-danger btn-sm"
+                                                    @onclick="() => DeleteNotification(notification.Id)"
+                                                    title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Load More Button -->
+                @if (hasMoreNotifications)
+                {
+                    <div class="text-center mt-4">
+                        <button class="btn btn-outline-primary" @onclick="LoadMoreNotifications" disabled="@isLoadingMore">
+                            @if (isLoadingMore)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-chevron-down me-2"></i>
+                            }
+                            Load More
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Notification Detail Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Notification Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                @if (selectedNotification != null)
+                {
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="notification-icon @GetNotificationIconClass(selectedNotification.Type) me-3">
+                            <i class="fas @GetNotificationIcon(selectedNotification.Type)"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">@selectedNotification.Title</h6>
+                            <small class="text-muted">@selectedNotification.CreatedAt.ToString("MMM dd, yyyy HH:mm")</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <p>@selectedNotification.Message</p>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Type:</strong> @selectedNotification.Type.ToString().Replace("_", " ")
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Method:</strong> @selectedNotification.Method.ToString()
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Status:</strong> @selectedNotification.Status.ToString()
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Sent:</strong> @(selectedNotification.SentAt?.ToString("MMM dd, yyyy HH:mm") ?? "Not sent")
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(selectedNotification.Data) && selectedNotification.Data != "{}")
+                    {
+                        <div class="mt-3">
+                            <strong>Additional Data:</strong>
+                            <pre class="bg-light p-2 rounded">@selectedNotification.Data</pre>
+                        </div>
+                    }
+                }
+            </div>
+            <div class="modal-footer">
+                @if (selectedNotification?.Status == NotificationStatus.Sent)
+                {
+                    <button type="button" class="btn btn-primary" @onclick="() => MarkAsRead(selectedNotification.Id)">
+                        <i class="fas fa-check me-1"></i>Mark as Read
+                    </button>
+                }
+                <button type="button" class="btn btn-outline-danger" @onclick="() => DeleteNotification(selectedNotification?.Id ?? 0)">
+                    <i class="fas fa-trash me-1"></i>Delete
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .notification-card {
+        border-left: 4px solid #dee2e6;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .notification-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+
+        .notification-card.unread {
+            border-left-color: #007bff;
+            background-color: #f8f9ff;
+        }
+
+    .notification-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .icon-price-alert {
+        background-color: #28a745;
+    }
+
+    .icon-portfolio {
+        background-color: #007bff;
+    }
+
+    .icon-system {
+        background-color: #6c757d;
+    }
+
+    .icon-market {
+        background-color: #fd7e14;
+    }
+
+    .icon-watchlist {
+        background-color: #20c997;
+    }
+
+    .notification-title {
+        font-weight: 600;
+    }
+
+    .notification-message {
+        line-height: 1.4;
+    }
+
+    .nav-pills .nav-link {
+        border-radius: 0;
+        border: none;
+        color: #6c757d;
+    }
+
+        .nav-pills .nav-link.active {
+            background-color: #007bff;
+        }
+
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private bool isLoadingMore = false;
+    private bool hasMoreNotifications = false;
+    private List<NotificationDto>? allNotifications;
+    private List<NotificationDto>? filteredNotifications;
+    private NotificationDto? selectedNotification;
+
+    private string selectedFilter = "all";
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    // Counts
+    private int unreadCount = 0;
+    private int totalNotifications = 0;
+    private int priceAlertCount = 0;
+    private int portfolioCount = 0;
+    private int systemCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotifications();
+        await LoadUnreadCount();
+    }
+
+    private async Task LoadNotifications()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            allNotifications = await NotificationService.GetNotificationsAsync(1, 50); // Load more initially
+            ApplyFilter();
+            CalculateCounts();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading notifications: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMoreNotifications()
+    {
+        try
+        {
+            isLoadingMore = true;
+            currentPage++;
+
+            var moreNotifications = await NotificationService.GetNotificationsAsync(currentPage, pageSize);
+            if (moreNotifications?.Any() == true)
+            {
+                allNotifications?.AddRange(moreNotifications);
+                ApplyFilter();
+            }
+            else
+            {
+                hasMoreNotifications = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading more notifications: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingMore = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadUnreadCount()
+    {
+        try
+        {
+            unreadCount = await NotificationService.GetUnreadCountAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading unread count: {ex.Message}");
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (allNotifications == null)
+        {
+            filteredNotifications = new List<NotificationDto>();
+            return;
+        }
+
+        filteredNotifications = selectedFilter switch
+        {
+            "unread" => allNotifications.Where(n => n.Status == NotificationStatus.Sent).ToList(),
+            "price-alerts" => allNotifications.Where(n => n.Type == NotificationType.PriceAlert).ToList(),
+            "portfolio" => allNotifications.Where(n => n.Type == NotificationType.PortfolioUpdate).ToList(),
+            "system" => allNotifications.Where(n => n.Type == NotificationType.SystemAnnouncement).ToList(),
+            _ => allNotifications.ToList()
+        };
+    }
+
+    private void CalculateCounts()
+    {
+        if (allNotifications == null) return;
+
+        totalNotifications = allNotifications.Count;
+        unreadCount = allNotifications.Count(n => n.Status == NotificationStatus.Sent);
+        priceAlertCount = allNotifications.Count(n => n.Type == NotificationType.PriceAlert);
+        portfolioCount = allNotifications.Count(n => n.Type == NotificationType.PortfolioUpdate);
+        systemCount = allNotifications.Count(n => n.Type == NotificationType.SystemAnnouncement);
+    }
+
+    private void SetFilter(string filter)
+    {
+        selectedFilter = filter;
+        ApplyFilter();
+        StateHasChanged();
+    }
+
+    private void SetFilterAll() => SetFilter("all");
+    private void SetFilterUnread() => SetFilter("unread");
+    private void SetFilterPriceAlerts() => SetFilter("price-alerts");
+    private void SetFilterPortfolio() => SetFilter("portfolio");
+    private void SetFilterSystem() => SetFilter("system");
+
+    private async Task RefreshNotifications()
+    {
+        currentPage = 1;
+        await LoadNotifications();
+        await LoadUnreadCount();
+    }
+
+    private async Task MarkAsRead(int notificationId)
+    {
+        try
+        {
+            var success = await NotificationService.MarkNotificationReadAsync(notificationId);
+            if (success)
+            {
+                var notification = allNotifications?.FirstOrDefault(n => n.Id == notificationId);
+                if (notification != null)
+                {
+                    notification.Status = NotificationStatus.Read;
+                    notification.ReadAt = DateTime.UtcNow;
+                }
+
+                CalculateCounts();
+                ApplyFilter();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error marking notification as read: {ex.Message}");
+        }
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        try
+        {
+            var success = await NotificationService.MarkAllNotificationsReadAsync();
+            if (success)
+            {
+                if (allNotifications != null)
+                {
+                    foreach (var notification in allNotifications.Where(n => n.Status == NotificationStatus.Sent))
+                    {
+                        notification.Status = NotificationStatus.Read;
+                        notification.ReadAt = DateTime.UtcNow;
+                    }
+                }
+
+                CalculateCounts();
+                ApplyFilter();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error marking all notifications as read: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteNotification(int notificationId)
+    {
+        try
+        {
+            var success = await NotificationService.DeleteNotificationAsync(notificationId);
+            if (success)
+            {
+                allNotifications?.RemoveAll(n => n.Id == notificationId);
+                CalculateCounts();
+                ApplyFilter();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting notification: {ex.Message}");
+        }
+    }
+
+    private string GetNotificationIcon(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.PriceAlert => "fa-bell",
+            NotificationType.PortfolioUpdate => "fa-chart-line",
+            NotificationType.SystemAnnouncement => "fa-info-circle",
+            NotificationType.MarketNews => "fa-newspaper",
+            NotificationType.WatchlistUpdate => "fa-eye",
+            _ => "fa-bell"
+        };
+    }
+
+    private string GetNotificationIconClass(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.PriceAlert => "icon-price-alert",
+            NotificationType.PortfolioUpdate => "icon-portfolio",
+            NotificationType.SystemAnnouncement => "icon-system",
+            NotificationType.MarketNews => "icon-market",
+            NotificationType.WatchlistUpdate => "icon-watchlist",
+            _ => "icon-system"
+        };
+    }
+
+    private string GetNotificationBadgeClass(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.PriceAlert => "bg-success",
+            NotificationType.PortfolioUpdate => "bg-primary",
+            NotificationType.SystemAnnouncement => "bg-secondary",
+            NotificationType.MarketNews => "bg-warning",
+            NotificationType.WatchlistUpdate => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+
+        if (timeSpan.TotalMinutes < 1)
+            return "Just now";
+        else if (timeSpan.TotalMinutes < 60)
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        else if (timeSpan.TotalHours < 24)
+            return $"{(int)timeSpan.TotalHours}h ago";
+        else if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays}d ago";
+        else
+            return dateTime.ToString("MMM dd");
+    }
+
+    private void ViewNotificationDetails(NotificationDto notification)
+    {
+        selectedNotification = notification;
+        // Show modal using JavaScript interop
+    }
+}

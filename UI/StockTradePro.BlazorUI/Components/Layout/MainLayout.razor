@@ -1,21 +1,439 @@
- 
 @inherits LayoutComponentBase
-
-@* Shared/MainLayout.razor *@
 @using StockTradePro.BlazorUI.Components.Shared
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<!-- Ensure Bootstrap CSS is loaded -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
-    <main>
-        <div class="top-row px-4">
-            <NotificationComponent />
+<div class="app-container">
+    <!-- Sidebar Navigation -->
+    <NavMenu />
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Top Header Bar -->
+        <div class="top-header">
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center">
+                    <!-- Mobile Menu Toggle -->
+                    <button class="btn btn-link d-lg-none p-0 text-dark" type="button" id="sidebarToggle">
+                        <i class="fas fa-bars fa-lg"></i>
+                    </button>
+
+                    <!-- Page Title Area (Optional - can be populated by child pages) -->
+                    <div class="page-title d-none d-md-block">
+                        <!-- This can be dynamically set by pages -->
+                    </div>
+
+                    <!-- Right Side Controls -->
+                    <div class="d-flex align-items-center">
+                        <!-- Market Status Indicator -->
+                        <div class="market-indicator me-3 d-none d-md-flex align-items-center">
+                            <div class="status-dot bg-success me-2"></div>
+                            <span class="small text-muted">Market Open</span>
+                        </div>
+
+                        <!-- Quick Search -->
+                        <div class="search-box me-3 d-none d-lg-block">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-transparent border-end-0">
+                                    <i class="fas fa-search text-muted"></i>
+                                </span>
+                                <input type="text" class="form-control border-start-0"
+                                       placeholder="Search stocks..."
+                                       style="box-shadow: none;">
+                            </div>
+                        </div>
+
+                        <!-- Notifications -->
+                        <div class="notification-icon me-3">
+                            <NotificationComponent />
+                        </div>
+
+                        <!-- User Profile Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-link p-0 text-dark dropdown-toggle"
+                                    type="button" id="userDropdown"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="user-avatar">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li>
+                                    <div class="dropdown-header">
+                                        <strong>John Doe</strong>
+                                        <div class="small text-muted">john.doe@example.com</div>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="/profile">
+                                        <i class="fas fa-user me-2"></i>Profile
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="/settings">
+                                        <i class="fas fa-cog me-2"></i>Settings
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="/notifications/preferences">
+                                        <i class="fas fa-bell me-2"></i>Notification Preferences
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item text-danger" onclick="logout()">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <article class="content px-4">
-            @Body
-        </article>
+        <!-- Page Content -->
+        <div class="content-wrapper">
+            <div class="container-fluid">
+                @Body
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <span class="text-muted">© 2024 StockTradePro. All rights reserved.</span>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <span class="text-muted small">
+                            Market data delayed by 15 minutes
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </footer>
     </main>
 </div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay d-none">
+    <div class="loading-spinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="mt-2 text-primary">Loading...</div>
+    </div>
+</div>
+
+<!-- Toast Container for Notifications -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <!-- Dynamic toasts will be inserted here -->
+</div>
+
+<!-- Bootstrap JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<style>
+    .app-container {
+        display: flex;
+        min-height: 100vh;
+        background-color: #f8f9fa;
+    }
+
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        margin-left: 280px;
+        min-height: 100vh;
+    }
+
+    .top-header {
+        background: white;
+        border-bottom: 1px solid #e9ecef;
+        padding: 0.75rem 0;
+        position: sticky;
+        top: 0;
+        z-index: 1020;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+
+    .content-wrapper {
+        flex: 1;
+        padding: 1.5rem 0;
+    }
+
+    .main-footer {
+        background: white;
+        border-top: 1px solid #e9ecef;
+        padding: 1rem 0;
+        margin-top: auto;
+    }
+
+    .market-indicator .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @@keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+
+    .search-box {
+        width: 250px;
+    }
+
+        .search-box .form-control {
+            background: #f8f9fa;
+            border-color: #e9ecef;
+        }
+
+            .search-box .form-control:focus {
+                background: white;
+                border-color: #007bff;
+                box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+            }
+
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.9rem;
+    }
+
+    .dropdown-toggle::after {
+        display: none;
+    }
+
+    .dropdown-menu {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: 8px;
+        margin-top: 0.5rem;
+        min-width: 200px;
+    }
+
+    .dropdown-header {
+        padding: 0.75rem 1rem;
+        background: #f8f9fa;
+        margin: -0.5rem -1rem 0.5rem -1rem;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .dropdown-item {
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+    }
+
+        .dropdown-item:hover {
+            background: #f8f9fa;
+        }
+
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.9);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .loading-spinner {
+        text-align: center;
+    }
+
+    .notification-icon {
+        position: relative;
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 991.98px) {
+        .main-content {
+            margin-left: 0;
+        }
+
+        .search-box {
+            width: 200px;
+        }
+    }
+
+    @@media (max-width: 767.98px) {
+        .top-header {
+            padding: 0.5rem 0;
+        }
+
+        .content-wrapper {
+            padding: 1rem 0;
+        }
+
+        .search-box {
+            width: 150px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            font-size: 0.8rem;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .content-wrapper .container-fluid {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+    }
+
+    /* Custom Scrollbar */
+    .content-wrapper::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .content-wrapper::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .content-wrapper::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+        .content-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+    /* Animation for page transitions */
+    .content-wrapper {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Print styles */
+    @@media print {
+        .top-header,
+        .main-footer,
+        .app-container .sidebar {
+            display: none;
+        }
+
+        .main-content {
+            margin-left: 0;
+        }
+    }
+</style>
+
+<script>
+    // Global JavaScript functions
+    function showLoading() {
+        document.getElementById('loadingOverlay').classList.remove('d-none');
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingOverlay').classList.add('d-none');
+    }
+
+    function showToast(title, message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        const toastId = 'toast-' + Date.now();
+
+        const toastHtml = `
+            <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                    <i class="fas fa-${getToastIcon(type)} text-${type} me-2"></i>
+                    <strong class="me-auto">${title}</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+
+        // Remove toast element after it's hidden
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+    }
+
+    function getToastIcon(type) {
+        switch(type) {
+            case 'success': return 'check-circle';
+            case 'danger': case 'error': return 'exclamation-circle';
+            case 'warning': return 'exclamation-triangle';
+            default: return 'info-circle';
+        }
+    }
+
+    function logout() {
+        if (confirm('Are you sure you want to logout?')) {
+            // Implement logout logic
+            showLoading();
+            // window.location.href = '/logout';
+        }
+    }
+
+    // Mobile sidebar toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.querySelector('.sidebar');
+
+        if (sidebarToggle && sidebar) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('show');
+            });
+
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function(e) {
+                if (window.innerWidth < 992 &&
+                    !sidebar.contains(e.target) &&
+                    !sidebarToggle.contains(e.target)) {
+                    sidebar.classList.remove('show');
+                }
+            });
+        }
+    });
+</script>
