@@ -1,5 +1,6 @@
-@inherits LayoutComponentBase
+ï»¿@inherits LayoutComponentBase
 @using StockTradePro.BlazorUI.Components.Shared
+@inject IJSRuntime JS
 
 <!-- Ensure Bootstrap CSS is loaded -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -50,46 +51,63 @@
                             <NotificationComponent />
                         </div>
 
-                        <!-- User Profile Dropdown -->
-                        <div class="dropdown">
-                            <button class="btn btn-link p-0 text-dark dropdown-toggle"
-                                    type="button" id="userDropdown"
-                                    data-bs-toggle="dropdown" aria-expanded="false">
-                                <div class="user-avatar">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow">
-                                <li>
-                                    <div class="dropdown-header">
-                                        <strong>John Doe</strong>
-                                        <div class="small text-muted">john.doe@example.com</div>
+                        @if (_showLoginButton)
+                        {
+                            <div class="d-flex align-items-center">
+                                <!-- Login Button: Subtle Outline -->
+                                <button class="btn btn-outline-primary fw-semibold rounded-pill me-3" @onclick="ShowLoginModal">
+                                    <i class="fas fa-sign-in-alt me-2"></i> 
+                                </button>
+
+                                <!-- Register Button: Primary CTA (uses overridden btn-primary style) -->
+                                <button class="btn btn-primary fw-semibold rounded-pill shadow-sm" @onclick="ShowRegisterModal">
+                                    <i class="fas fa-user-plus me-2"></i> 
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- User Profile Dropdown -->
+                            <div class="dropdown">
+                                <button class="btn btn-link p-0 text-dark dropdown-toggle"
+                                type="button" id="userDropdown"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                    <div class="user-avatar">
+                                        <i class="fas fa-user"></i>
                                     </div>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <a class="dropdown-item" href="/profile">
-                                        <i class="fas fa-user me-2"></i>Profile
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="/settings">
-                                        <i class="fas fa-cog me-2"></i>Settings
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="/notifications/preferences">
-                                        <i class="fas fa-bell me-2"></i>Notification Preferences
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <button class="dropdown-item text-danger" onclick="logout()">
-                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow">
+                                    <li>
+                                        <div class="dropdown-header">
+                                            <strong>John Doe</strong>
+                                            <div class="small text-muted">john.doe@example.com</div>
+                                        </div>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="/profile">
+                                            <i class="fas fa-user me-2"></i>Profile
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="/settings">
+                                            <i class="fas fa-cog me-2"></i>Settings
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="/notifications/preferences">
+                                            <i class="fas fa-bell me-2"></i>Notification Preferences
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" onclick="logout()">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -107,7 +125,7 @@
             <div class="container-fluid">
                 <div class="row align-items-center">
                     <div class="col-md-6">
-                        <span class="text-muted">© 2024 StockTradePro. All rights reserved.</span>
+                        <span class="text-muted">ï¿½ 2024 StockTradePro. All rights reserved.</span>
                     </div>
                     <div class="col-md-6 text-end">
                         <span class="text-muted small">
@@ -135,10 +153,22 @@
     <!-- Dynamic toasts will be inserted here -->
 </div>
 
+<!--  Login modal  -->
+<div >
+    <StockTradePro.BlazorUI.Components.Pages.Authentication.Login OnLoginSuccess="HandleLoginCompleted"></StockTradePro.BlazorUI.Components.Pages.Authentication.Login>
+</div>
+
+<!--  Register modal  -->
+<div >
+    <StockTradePro.BlazorUI.Components.Pages.Authentication.Register ></StockTradePro.BlazorUI.Components.Pages.Authentication.Register>
+</div>
+
 <!-- Bootstrap JavaScript -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <style>
+
+    
     .app-container {
         display: flex;
         min-height: 100vh;
@@ -436,4 +466,77 @@
             });
         }
     });
+
+    // for login and register logic
+    function showBootstrapModal(modalId) {
+        console.log("showBootstrapModal called with modalId: " + modalId);
+        const modalElement = document.getElementById(modalId);
+        if (modalElement && typeof bootstrap !== 'undefined') {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        }
+    }
+
+    // Global function to hide a modal (called from C#)
+    function hideBootstrapModal(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement && typeof bootstrap !== 'undefined') {
+            // Get the existing instance to call the hide method
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
+    }
 </script>
+
+
+@code {
+    private void TestClick()
+    {
+        Console.WriteLine("TestClick called");
+    }
+
+    //State variable to control the button's visibility
+    private bool _showLoginButton = true;
+
+    private async Task ShowLoginModal()
+    {
+        Console.WriteLine("ShowLoginModal called");
+        await JS.InvokeVoidAsync("showBootstrapModal", "loginModal");
+    }
+
+    private async Task HandleLoginCompleted()
+    {
+        _showLoginButton = false;
+
+        StateHasChanged();
+
+        // Optional: Show a success toast using your existing JS function
+        // Note: You would also need to invoke this through JS Interop if the JS function is outside the Blazor component's scope
+        //await JS.InvokeVoidAsync("showToast", "Success", "You are now logged in.", "success");
+    }
+
+    private async Task ShowRegisterModal()
+    {
+        await JS.InvokeVoidAsync("showBootstrapModal", "registerModal");
+    }
+
+    private async Task HandleRegisterCompleted()
+    {
+        _showLoginButton = false;
+
+        StateHasChanged();
+
+        // Optional: Show a success toast using your existing JS function
+        // Note: You would also need to invoke this through JS Interop if the JS function is outside the Blazor component's scope
+        //await JS.InvokeVoidAsync("showToast", "Success", "You are now logged in.", "success");
+    }
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("Initialize called");
+
+        base.OnInitialized();
+    }
+}
