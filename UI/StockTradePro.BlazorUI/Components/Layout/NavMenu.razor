@@ -33,14 +33,65 @@
                     <span>Portfolios</span>
                 </NavLink>
             </div>
-
+            <NavLink class="nav-link d-flex align-items-center" href="stocks">
+                <i class="fas fa-chart-line nav-icon"></i>
+                <span>Stocks</span>
+            </NavLink>
             <!-- Stocks -->
             <div class="nav-item mb-2">
-                <NavLink class="nav-link d-flex align-items-center" href="stocks">
-                    <i class="fas fa-chart-line nav-icon"></i>
-                    <span>Stocks</span>
-                </NavLink>
+                <ul class="dropdown-toggle">
+                    
+                    <li style="list-style-type:none;">
+                        <NavLink class="nav-link d-flex align-items-center" href="stocks/screener">
+                            <i class="fas fa-filter me-2"></i>
+                            <span>screener</span>
+                        </NavLink>
+                    </li>
+                    <li style="list-style-type:none;">
+                    <NavLink class="nav-link d-flex align-items-center" href="stocks/market-data">
+                        <i class="fas fa-chart-area me-2"></i>
+                        <span>Market Data</span>
+                    </NavLink>
+                    </li>
+                </ul>
+               
             </div>
+            <!-- Current Stocks link -->
+            <!-- Stocks Dropdown -->
+          @*   <div class="nav-item mb-2">
+                <div class="dropdown">
+                    <button class="nav-link d-flex align-items-center dropdown-toggle w-100 border-0 bg-transparent text-start"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        <i class="fas fa-chart-line nav-icon"></i>
+                        <span>Stocks</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark">
+                        <li>
+                            <NavLink class="dropdown-item" href="stocks" Match="NavLinkMatch.All">
+                                <i class="fas fa-search me-2"></i>Browse & Search
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="dropdown-item" href="stocks/screener">
+                                <i class="fas fa-filter me-2"></i>Stock Screener
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="dropdown-item" href="stocks/market-data">
+                                <i class="fas fa-chart-area me-2"></i>Market Data
+                            </NavLink>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="/transactions/buy">
+                                <i class="fas fa-shopping-cart me-2"></i>Buy Stocks
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div> *@
 
             <!-- Watchlists -->
             <div class="nav-item mb-2">

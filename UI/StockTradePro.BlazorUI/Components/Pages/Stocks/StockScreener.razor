@@ -1,1 +1,1019 @@
  
+@page "/stocks/screener"
+@using StockTradePro.BlazorUI.Models.Stocks
+@using StockTradePro.BlazorUI.Services
+@using StockTradePro.BlazorUI.Components.Shared
+@inject IStockDataService StockDataService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Stock Screener - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-filter me-2 text-primary"></i>Stock Screener
+                    </h1>
+                    <p class="text-muted mb-0">Filter and discover stocks based on your criteria</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary me-2" @onclick="ResetFilters">
+                        <i class="fas fa-undo me-1"></i>Reset Filters
+                    </button>
+                    <button type="button" class="btn btn-outline-info" @onclick="SaveScreener">
+                        <i class="fas fa-save me-1"></i>Save Screener
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screening Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-sliders-h me-2"></i>Screening Criteria
+                </h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="ToggleAdvancedFilters">
+                    <i class="fas @(showAdvancedFilters ? "fa-eye-slash" : "fa-eye") me-1"></i>
+                    @(showAdvancedFilters ? "Hide" : "Show") Advanced
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Basic Filters Row -->
+            <div class="row g-3 mb-3">
+                <div class="col-lg-3 col-md-4">
+                    <label class="form-label">
+                        <i class="fas fa-search me-1"></i>Search
+                    </label>
+                    <input type="text" class="form-control" placeholder="Symbol or company name..."
+                           @bind="screeningCriteria.Query" @onkeypress="HandleKeyPress" />
+                </div>
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">
+                        <i class="fas fa-industry me-1"></i>Sector
+                    </label>
+                    <select class="form-select" @bind="screeningCriteria.Sector">
+                        <option value="">All Sectors</option>
+                        @if (sectors?.Any() == true)
+                        {
+                            @foreach (var sector in sectors)
+                            {
+                                <option value="@sector">@sector</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">
+                        <i class="fas fa-building me-1"></i>Exchange
+                    </label>
+                    <select class="form-select" @bind="screeningCriteria.Exchange">
+                        <option value="">All Exchanges</option>
+                        @if (exchanges?.Any() == true)
+                        {
+                            @foreach (var exchange in exchanges)
+                            {
+                                <option value="@exchange">@exchange</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-6">
+                    <label class="form-label">
+                        <i class="fas fa-sort me-1"></i>Sort By
+                    </label>
+                    <select class="form-select" @bind="screeningCriteria.SortBy">
+                        <option value="symbol">Symbol</option>
+                        <option value="name">Company Name</option>
+                        <option value="price">Price</option>
+                        <option value="change">Change %</option>
+                        <option value="volume">Volume</option>
+                        <option value="marketcap">Market Cap</option>
+                    </select>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" @onclick="ApplyFilters" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-search me-1"></i>
+                            }
+                            Screen Stocks (@totalResults)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Filters -->
+            @if (showAdvancedFilters)
+            {
+                <div class="advanced-filters">
+                    <hr class="my-3">
+                    <h6 class="mb-3">
+                        <i class="fas fa-cogs me-2 text-info"></i>Advanced Filters
+                    </h6>
+
+                    <!-- Price Range -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-dollar-sign me-1"></i>Min Price
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" placeholder="0.00" step="0.01" min="0"
+                                       @bind="screeningCriteria.MinPrice" />
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-dollar-sign me-1"></i>Max Price
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" placeholder="1000.00" step="0.01" min="0"
+                                       @bind="screeningCriteria.MaxPrice" />
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-chart-area me-1"></i>Min Volume
+                            </label>
+                            <input type="number" class="form-control" placeholder="0" min="0"
+                                   @bind="screeningCriteria.MinVolume" />
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-chart-area me-1"></i>Max Volume
+                            </label>
+                            <input type="number" class="form-control" placeholder="100,000,000" min="0"
+                                   @bind="screeningCriteria.MaxVolume" />
+                        </div>
+                    </div>
+
+                    <!-- Market Cap and Change Filters -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-building me-1"></i>Min Market Cap
+                            </label>
+                            <select class="form-select" @bind="screeningCriteria.MinMarketCap">
+                                <option value="">Any Size</option>
+                                <option value="50000000">Micro Cap ($50M+)</option>
+                                <option value="300000000">Small Cap ($300M+)</option>
+                                <option value="2000000000">Mid Cap ($2B+)</option>
+                                <option value="10000000000">Large Cap ($10B+)</option>
+                                <option value="200000000000">Mega Cap ($200B+)</option>
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-percentage me-1"></i>Min Change %
+                            </label>
+                            <input type="number" class="form-control" placeholder="-100" step="0.1"
+                                   @bind="screeningCriteria.MinChangePercent" />
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-percentage me-1"></i>Max Change %
+                            </label>
+                            <input type="number" class="form-control" placeholder="100" step="0.1"
+                                   @bind="screeningCriteria.MaxChangePercent" />
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-chart-line me-1"></i>Performance
+                            </label>
+                            <select class="form-select" @bind="screeningCriteria.PerformanceFilter">
+                                <option value="">All Stocks</option>
+                                <option value="gainers">Gainers Only</option>
+                                <option value="losers">Losers Only</option>
+                                <option value="neutral">Unchanged</option>
+                                <option value="volatile">High Volatility</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Quick Presets -->
+                    <div class="row g-2 mt-2">
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="fas fa-magic me-1"></i>Quick Presets
+                            </label>
+                            <div class="btn-group flex-wrap" role="group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="@(e => ChangeSorting("blue-chip"))">
+                                    Blue Chip
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="@(e => ChangeSorting("growth"))">
+                                    Growth Stocks
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="@(e => ChangeSorting("penny"))">
+                                    Penny Stocks
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="@(e => ChangeSorting("high-volume"))">
+                                    High Volume
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="@(e => ChangeSorting("tech-giants"))">
+                                    Tech Giants
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="@(e => ChangeSorting("dividend"))">
+                                    Dividend Stocks
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Results Summary -->
+    @if (hasSearched)
+    {
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="results-summary">
+                        <span class="badge bg-primary me-2">@totalResults Results</span>
+                        @if (!string.IsNullOrEmpty(screeningCriteria.Query))
+                        {
+                            <span class="badge bg-info me-2">Query: "@screeningCriteria.Query"</span>
+                        }
+                        @if (!string.IsNullOrEmpty(screeningCriteria.Sector))
+                        {
+                            <span class="badge bg-success me-2">@screeningCriteria.Sector</span>
+                        }
+                        @if (!string.IsNullOrEmpty(screeningCriteria.Exchange))
+                        {
+                            <span class="badge bg-warning me-2">@screeningCriteria.Exchange</span>
+                        }
+                    </div>
+                    <div class="results-actions">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="ExportResults" disabled="@(!stocks?.Any() == true)">
+                                <i class="fas fa-download me-1"></i>Export
+                            </button>
+                            <button type="button" class="btn btn-outline-info" @onclick="AddAllToWatchlist" disabled="@(!stocks?.Any() == true)">
+                                <i class="fas fa-eye me-1"></i>Add to Watchlist
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <LoadingSpinner IsVisible="true"
+                        Type="LoadingSpinner.LoadingType.Custom"
+                        Message="Screening stocks..."
+                        Size="LoadingSpinner.LoadingSize.Large" />
+    }
+    else if (hasSearched && stocks?.Any() != true)
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-filter fa-3x text-muted mb-3"></i>
+                <h4>No Stocks Match Your Criteria</h4>
+                <p class="text-muted mb-3">Try adjusting your filters or using one of the quick presets.</p>
+                <button class="btn btn-outline-primary" @onclick="ResetFilters">
+                    <i class="fas fa-undo me-2"></i>Reset Filters
+                </button>
+            </div>
+        </div>
+    }
+    else if (stocks?.Any() == true)
+    {
+        <!-- Results Table -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Screening Results</h5>
+                    <div class="d-flex align-items-center">
+                        <label class="form-label me-2 mb-0">Show:</label>
+                        <select class="form-select form-select-sm" style="width: auto;" @onchange="OnPageSizeChanged">
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover screener-table mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th scope="col">
+                                    <input type="checkbox" class="form-check-input" @onchange="ToggleSelectAll" />
+                                </th>
+                                <th scope="col" @onclick="@(e => ChangeSorting("symbol"))" class="sortable">
+                                    Symbol @GetSortIcon("symbol")
+                                </th>
+                                <th scope="col" @onclick="@(e => ChangeSorting("name"))" class="sortable">
+                                    Company @GetSortIcon("name")
+                                </th>
+                                <th scope="col" @onclick="@(e => ChangeSorting("price"))" class="sortable">
+                                    Price @GetSortIcon("price")
+                                </th>
+                                <th scope="col" @onclick="@(e => ChangeSorting("change"))" class="sortable">
+                                    Change % @GetSortIcon("change")
+                                </th>
+                                <th scope="col" @onclick="@(e => ChangeSorting("volume"))" class="sortable">
+                                    Volume @GetSortIcon("volume")
+                                </th>
+                                <th scope="col" @onclick="@(e => ChangeSorting("marketcap"))" class="sortable">
+                                    Market Cap @GetSortIcon("marketcap")
+                                </th>
+                                <th scope="col">Sector</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var stock in stocks)
+                            {
+                                <tr class="stock-row" @onclick="() => ViewStock(stock.Symbol)">
+                                    <td @onclick:stopPropagation="true">
+                                        <input type="checkbox" class="form-check-input" 
+                                               @onchange="(e) => ToggleStockSelection(stock, (bool)e.Value!)" 
+                                               checked="@(selectedStocks.Contains(stock.Symbol))" />
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            @if (!string.IsNullOrEmpty(stock.LogoUrl))
+                                            {
+                                                <img src="@stock.LogoUrl" alt="@stock.Symbol" class="me-2 company-logo"
+                                                     onerror="this.style.display='none'" />
+                                            }
+                                            <div>
+                                                <strong>@stock.Symbol</strong>
+                                                <div class="small text-muted">@stock.Exchange</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div class="fw-bold stock-name">@TruncateText(stock.CompanyName, 25)</div>
+                                            <small class="text-muted">@stock.Industry</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>@stock.CurrentPrice.ToString("C2")</strong>
+                                    </td>
+                                    <td class="@(stock.PriceChange >= 0 ? "text-success" : "text-danger")">
+                                        @stock.PriceChange.ToString("+0.00;-0.00;0.00")
+                                    </td>
+                                    <td class="@(stock.PriceChangePercent >= 0 ? "text-success" : "text-danger")">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas @(stock.PriceChangePercent >= 0 ? "fa-arrow-up" : "fa-arrow-down") me-1"></i>
+                                            @stock.PriceChangePercent.ToString("F2")%
+                                        </div>
+                                    </td>
+                                    <td>@FormatVolume(stock.Volume)</td>
+                                    <td>@FormatMarketCap(stock.MarketCap)</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">@stock.Sector</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group" @onclick:stopPropagation="true">
+                                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                                    @onclick="() => ViewStock(stock.Symbol)" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success btn-sm"
+                                                    @onclick="() => AddToWatchlist(stock.Symbol)" title="Add to Watchlist">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info btn-sm"
+                                                    @onclick="() => BuyStock(stock.Symbol)" title="Buy Stock">
+                                                <i class="fas fa-shopping-cart"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages > 1)
+        {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <nav aria-label="Screener results pagination">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => LoadPage(currentPage - 1)" disabled="@(currentPage <= 1)">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                            </li>
+
+                            @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                            {
+                                <li class="page-item @(i == currentPage ? "active" : "")">
+                                    <button class="page-link" @onclick="() => LoadPage(i)">@i</button>
+                                </li>
+                            }
+
+                            <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => LoadPage(currentPage + 1)" disabled="@(currentPage >= totalPages)">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+
+                    <div class="text-center text-muted">
+                        Showing @((currentPage - 1) * pageSize + 1) to @Math.Min(currentPage * pageSize, totalResults) of @totalResults stocks
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .screener-table .stock-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .screener-table .stock-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    .company-logo {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+    }
+
+    .stock-name {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.2s ease;
+    }
+
+    .sortable:hover {
+        color: #007bff !important;
+    }
+
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+    }
+
+    .advanced-filters {
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+        }
+        to {
+            opacity: 1;
+            max-height: 500px;
+        }
+    }
+
+    .results-summary .badge {
+        font-size: 0.8rem;
+    }
+
+    .form-check-input:checked {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    .btn-group {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+
+        .stock-name {
+            max-width: 150px;
+        }
+
+        .btn-group-sm .btn {
+            padding: 0.2rem 0.3rem;
+        }
+
+        .company-logo {
+            width: 20px;
+            height: 20px;
+        }
+    }
+</style>
+
+@code {
+    private bool isLoading = false;
+    private bool hasSearched = false;
+    private bool showAdvancedFilters = false;
+    private List<StockDto>? stocks;
+    private List<string>? sectors;
+    private List<string>? exchanges;
+    private HashSet<string> selectedStocks = new();
+
+    private AdvancedStockSearchDto screeningCriteria = new();
+    private int currentPage = 1;
+    private int pageSize = 50;
+    private int totalPages = 1;
+    private int totalResults = 0;
+
+    public class AdvancedStockSearchDto : StockSearchDto
+    {
+        public long? MinVolume { get; set; }
+        public long? MaxVolume { get; set; }
+        public string? MinMarketCap { get; set; }
+        public double? MinChangePercent { get; set; }
+        public double? MaxChangePercent { get; set; }
+        public string PerformanceFilter { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFilters();
+        
+        // Apply default "blue chip" preset
+        ApplyPreset("blue-chip");
+        await ApplyFilters();
+    }
+
+    private async Task LoadFilters()
+    {
+        try
+        {
+            sectors = await StockDataService.GetSectorsAsync();
+            exchanges = await StockDataService.GetExchangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading filters: {ex.Message}");
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        try
+        {
+            isLoading = true;
+            hasSearched = true;
+            StateHasChanged();
+
+            // Convert advanced criteria to basic search DTO
+            var searchDto = new StockSearchDto
+            {
+                Query = screeningCriteria.Query,
+                Sector = screeningCriteria.Sector,
+                Exchange = screeningCriteria.Exchange,
+                MinPrice = screeningCriteria.MinPrice,
+                MaxPrice = screeningCriteria.MaxPrice,
+                SortBy = screeningCriteria.SortBy,
+                SortOrder = screeningCriteria.SortOrder,
+                Page = currentPage,
+                PageSize = pageSize
+            };
+
+            var result = await StockDataService.GetStocksAsync(searchDto);
+            
+            // Apply additional client-side filtering for advanced criteria
+            stocks = FilterStocksAdvanced(result.Data);
+            totalResults = stocks.Count;
+            totalPages = (int)Math.Ceiling((double)totalResults / pageSize);
+
+            // Clear selection when new results load
+            selectedStocks.Clear();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error applying filters: {ex.Message}");
+            await JS.InvokeVoidAsync("showToast", "Error", "Failed to screen stocks", "error");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private List<StockDto> FilterStocksAdvanced(List<StockDto> inputStocks)
+    {
+        var filtered = inputStocks.AsQueryable();
+
+        // Volume filters
+        if (screeningCriteria.MinVolume.HasValue)
+            filtered = filtered.Where(s => s.Volume >= screeningCriteria.MinVolume.Value);
+        
+        if (screeningCriteria.MaxVolume.HasValue)
+            filtered = filtered.Where(s => s.Volume <= screeningCriteria.MaxVolume.Value);
+
+        // Market cap filter
+        if (!string.IsNullOrEmpty(screeningCriteria.MinMarketCap) && 
+            double.TryParse(screeningCriteria.MinMarketCap, out double minMktCap))
+        {
+            filtered = filtered.Where(s => s.MarketCap >= minMktCap);
+        }
+
+        // Change percent filters
+        if (screeningCriteria.MinChangePercent.HasValue)
+            filtered = filtered.Where(s => s.PriceChangePercent >= screeningCriteria.MinChangePercent.Value);
+        
+        if (screeningCriteria.MaxChangePercent.HasValue)
+            filtered = filtered.Where(s => s.PriceChangePercent <= screeningCriteria.MaxChangePercent.Value);
+
+        // Performance filter
+        switch (screeningCriteria.PerformanceFilter)
+        {
+            case "gainers":
+                filtered = filtered.Where(s => s.PriceChangePercent > 0);
+                break;
+            case "losers":
+                filtered = filtered.Where(s => s.PriceChangePercent < 0);
+                break;
+            case "neutral":
+                filtered = filtered.Where(s => Math.Abs(s.PriceChangePercent) < 0.1);
+                break;
+            case "volatile":
+                filtered = filtered.Where(s => Math.Abs(s.PriceChangePercent) > 5);
+                break;
+        }
+
+        return filtered.ToList();
+    }
+
+    private async Task LoadPage(int page)
+    {
+        if (page >= 1 && page <= totalPages && page != currentPage)
+        {
+            currentPage = page;
+            await ApplyFilters();
+        }
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newPageSize))
+        {
+            pageSize = newPageSize;
+            currentPage = 1;
+            await ApplyFilters();
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            currentPage = 1;
+            await ApplyFilters();
+        }
+    }
+
+    private void ToggleAdvancedFilters()
+    {
+        showAdvancedFilters = !showAdvancedFilters;
+    }
+
+    private async Task ResetFilters()
+    {
+        screeningCriteria = new AdvancedStockSearchDto
+        {
+            SortBy = "symbol",
+            SortOrder = "asc",
+            Page = 1,
+            PageSize = pageSize
+        };
+        currentPage = 1;
+        selectedStocks.Clear();
+        hasSearched = false;
+        StateHasChanged();
+    }
+
+    private void ApplyPreset(string presetType)
+    {
+        ResetFilters();
+        
+        switch (presetType)
+        {
+            case "blue-chip":
+                screeningCriteria.MinMarketCap = "10000000000"; // $10B+
+                screeningCriteria.MinPrice = 50;
+                screeningCriteria.MaxPrice = 1000;
+                screeningCriteria.SortBy = "marketcap";
+                screeningCriteria.SortOrder = "desc";
+                break;
+            
+            case "growth":
+                screeningCriteria.MinChangePercent = 2;
+                screeningCriteria.MinVolume = 1000000;
+                screeningCriteria.SortBy = "change";
+                screeningCriteria.SortOrder = "desc";
+                break;
+            
+            case "penny":
+                screeningCriteria.MinPrice = 0.01;
+                screeningCriteria.MaxPrice = 5;
+                screeningCriteria.MinVolume = 500000;
+                screeningCriteria.SortBy = "volume";
+                screeningCriteria.SortOrder = "desc";
+                break;
+            
+            case "high-volume":
+                screeningCriteria.MinVolume = 10000000;
+                screeningCriteria.SortBy = "volume";
+                screeningCriteria.SortOrder = "desc";
+                break;
+            
+            case "tech-giants":
+                screeningCriteria.Sector = "Technology";
+                screeningCriteria.MinMarketCap = "50000000000"; // $50B+
+                screeningCriteria.SortBy = "marketcap";
+                screeningCriteria.SortOrder = "desc";
+                break;
+            
+            case "dividend":
+                screeningCriteria.MinMarketCap = "1000000000"; // $1B+
+                screeningCriteria.MinPrice = 20;
+                screeningCriteria.MaxChangePercent = 5; // Less volatile
+                screeningCriteria.MinChangePercent = -5;
+                screeningCriteria.SortBy = "marketcap";
+                screeningCriteria.SortOrder = "desc";
+                break;
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task ChangeSorting(string sortBy)
+    {
+        if (screeningCriteria.SortBy == sortBy)
+        {
+            screeningCriteria.SortOrder = screeningCriteria.SortOrder == "asc" ? "desc" : "asc";
+        }
+        else
+        {
+            screeningCriteria.SortBy = sortBy;
+            screeningCriteria.SortOrder = "asc";
+        }
+        
+        currentPage = 1;
+        await ApplyFilters();
+    }
+
+    private MarkupString GetSortIcon(string column)
+    {
+        if (screeningCriteria.SortBy != column)
+            return new MarkupString("<i class=\"fas fa-sort text-muted\"></i>");
+        
+        var iconClass = screeningCriteria.SortOrder == "asc" ? "fa-sort-up" : "fa-sort-down";
+        return new MarkupString($"<i class=\"fas {iconClass} text-primary\"></i>");
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        if ((bool)e.Value!)
+        {
+            selectedStocks.UnionWith(stocks?.Select(s => s.Symbol) ?? Enumerable.Empty<string>());
+        }
+        else
+        {
+            selectedStocks.Clear();
+        }
+        StateHasChanged();
+    }
+
+    private void ToggleStockSelection(StockDto stock, bool isSelected)
+    {
+        if (isSelected)
+        {
+            selectedStocks.Add(stock.Symbol);
+        }
+        else
+        {
+            selectedStocks.Remove(stock.Symbol);
+        }
+        StateHasChanged();
+    }
+
+    private void ViewStock(string symbol)
+    {
+        Navigation.NavigateTo($"/stocks/{symbol}");
+    }
+
+    private void AddToWatchlist(string symbol)
+    {
+        Navigation.NavigateTo($"/watchlists/add?symbol={symbol}");
+    }
+
+    private void BuyStock(string symbol)
+    {
+        Navigation.NavigateTo($"/transactions/buy?symbol={symbol}");
+    }
+
+    private async Task AddAllToWatchlist()
+    {
+        if (selectedStocks.Any())
+        {
+            var symbols = string.Join(",", selectedStocks);
+            Navigation.NavigateTo($"/watchlists/add?symbols={symbols}");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("showToast", "Info", "Please select stocks to add to watchlist", "info");
+        }
+    }
+
+    private async Task ExportResults()
+    {
+        try
+        {
+            if (stocks?.Any() != true)
+            {
+                await JS.InvokeVoidAsync("showToast", "Info", "No data to export", "info");
+                return;
+            }
+
+            var exportData = stocks.Select(s => new
+            {
+                s.Symbol,
+                s.CompanyName,
+                s.Exchange,
+                s.Sector,
+                s.Industry,
+                CurrentPrice = s.CurrentPrice,
+                PriceChange = s.PriceChange,
+                PriceChangePercent = s.PriceChangePercent,
+                Volume = s.Volume,
+                MarketCap = s.MarketCap,
+                LastUpdated = s.LastUpdated
+            }).ToList();
+
+            var json = System.Text.Json.JsonSerializer.Serialize(exportData, new JsonSerializerOptions 
+            { 
+                WriteIndented = true 
+            });
+            
+            var fileName = $"stock-screener-results-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+            await JS.InvokeVoidAsync("downloadFile", fileName, json, "application/json");
+            await JS.InvokeVoidAsync("showToast", "Success", "Results exported successfully", "success");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting results: {ex.Message}");
+            await JS.InvokeVoidAsync("showToast", "Error", "Failed to export results", "error");
+        }
+    }
+
+    private async Task SaveScreener()
+    {
+        try
+        {
+            var screenerConfig = new
+            {
+                Name = $"Custom Screener - {DateTime.Now:MMM dd, yyyy}",
+                Criteria = screeningCriteria,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var json = System.Text.Json.JsonSerializer.Serialize(screenerConfig, new JsonSerializerOptions 
+            { 
+                WriteIndented = true 
+            });
+
+            await JS.InvokeVoidAsync("localStorage.setItem", "savedScreener", json);
+            await JS.InvokeVoidAsync("showToast", "Success", "Screener configuration saved", "success");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving screener: {ex.Message}");
+            await JS.InvokeVoidAsync("showToast", "Error", "Failed to save screener", "error");
+        }
+    }
+
+    private string FormatVolume(long volume)
+    {
+        if (volume >= 1_000_000_000)
+            return $"{volume / 1_000_000_000.0:F1}B";
+        else if (volume >= 1_000_000)
+            return $"{volume / 1_000_000.0:F1}M";
+        else if (volume >= 1_000)
+            return $"{volume / 1_000.0:F1}K";
+        else
+            return volume.ToString("N0");
+    }
+
+    private string FormatMarketCap(double marketCap)
+    {
+        if (marketCap >= 1_000_000_000_000)
+            return $"${marketCap / 1_000_000_000_000:F1}T";
+        else if (marketCap >= 1_000_000_000)
+            return $"${marketCap / 1_000_000_000:F1}B";
+        else if (marketCap >= 1_000_000)
+            return $"${marketCap / 1_000_000:F1}M";
+        else
+            return $"${marketCap:F0}";
+    }
+
+    private string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+            return text;
+        
+        return text.Substring(0, maxLength - 3) + "...";
+    }
+
+    // Additional helper methods for enhanced functionality
+    private async Task LoadSavedScreener()
+    {
+        try
+        {
+            var savedJson = await JS.InvokeAsync<string>("localStorage.getItem", "savedScreener");
+            if (!string.IsNullOrEmpty(savedJson))
+            {
+                // Parse and load saved configuration
+                // Implementation would depend on how you want to handle saved screeners
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading saved screener: {ex.Message}");
+        }
+    }
+
+    private void ApplyQuickFilter(string filterType, string value)
+    {
+        switch (filterType)
+        {
+            case "sector":
+                screeningCriteria.Sector = value;
+                break;
+            case "exchange":
+                screeningCriteria.Exchange = value;
+                break;
+            case "performance":
+                screeningCriteria.PerformanceFilter = value;
+                break;
+        }
+        
+        currentPage = 1;
+        InvokeAsync(ApplyFilters);
+    }
+
+    private bool IsAllSelected()
+    {
+        return stocks?.Any() == true && stocks.All(s => selectedStocks.Contains(s.Symbol));
+    }
+
+    private string GetSelectedCountText()
+    {
+        var selectedCount = selectedStocks.Count;
+        var totalCount = stocks?.Count ?? 0;
+        
+        if (selectedCount == 0)
+            return "";
+        
+        return selectedCount == totalCount ? "All selected" : $"{selectedCount} selected";
+    }
+}
