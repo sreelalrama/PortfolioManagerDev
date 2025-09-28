@@ -1,1 +1,600 @@
- 
+@page "/stocks/market-data"
+@using StockTradePro.BlazorUI.Models.Stocks
+@using StockTradePro.BlazorUI.Services
+@using StockTradePro.BlazorUI.Components.Shared
+@inject IStockDataService StockDataService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Market Data - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-chart-area me-2 text-primary"></i>Market Data
+                    </h1>
+                    <p class="text-muted mb-0">Live market indices, top performers, and market insights</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary me-2" @onclick="RefreshData" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-sync-alt me-1"></i>
+                        }
+                        Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-info" @onclick="ToggleAutoRefresh">
+                        <i class="fas @(autoRefresh ? "fa-pause" : "fa-play") me-1"></i>
+                        @(autoRefresh ? "Pause" : "Start") Auto-Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading && marketOverview == null)
+    {
+        <LoadingSpinner IsVisible="true"
+                        Type="LoadingSpinner.LoadingType.Custom"
+                        Message="Loading market data..."
+                        Size="LoadingSpinner.LoadingSize.Large" />
+    }
+    else if (marketOverview == null)
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                <h4>Market Data Unavailable</h4>
+                <p class="text-muted mb-3">Unable to load market data at this time.</p>
+                <button class="btn btn-primary" @onclick="RefreshData">
+                    <i class="fas fa-retry me-2"></i>Try Again
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Market Status Banner -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert @GetMarketStatusClass() d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="fas @GetMarketStatusIcon() me-2"></i>
+                        <strong>Market Status: @GetMarketStatusText()</strong>
+                    </div>
+                    <small>Last updated: @marketOverview.LastUpdated.ToString("HH:mm:ss")</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Indices -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Market Indices
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        @if (marketOverview.Indices?.Any() == true)
+                        {
+                            <div class="row">
+                                @foreach (var index in marketOverview.Indices)
+                                {
+                                    <div class="col-lg-3 col-md-6 mb-3">
+                                        <div class="card border-0 bg-light h-100">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-primary">@index.IndexName</h6>
+                                                <div class="h4 mb-2 fw-bold">@index.CurrentValue.ToString("N2")</div>
+                                                <div class="d-flex justify-content-center align-items-center">
+                                                    <span class="@(index.Change >= 0 ? "text-success" : "text-danger") fw-bold me-2">
+                                                        <i class="fas @(index.Change >= 0 ? "fa-arrow-up" : "fa-arrow-down") me-1"></i>
+                                                        @index.Change.ToString("+0.00;-0.00;0.00")
+                                                    </span>
+                                                    <span class="@(index.ChangePercent >= 0 ? "text-success" : "text-danger") fw-bold">
+                                                        (@index.ChangePercent.ToString("+0.00;-0.00;0.00")%)
+                                                    </span>
+                                                </div>
+                                                <small class="text-muted">@index.IndexSymbol</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center text-muted">
+                                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                <p>No market indices data available</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Performance Cards -->
+        <div class="row mb-4">
+            <!-- Top Gainers -->
+            <div class="col-lg-4 col-md-12 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-arrow-trend-up me-2"></i>Top Gainers
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (marketOverview.TopGainers?.Any() == true)
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var stock in marketOverview.TopGainers.Take(5))
+                                {
+                                    <div class="list-group-item list-group-item-action stock-item" @onclick="() => ViewStock(stock.Symbol)">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="fw-bold">@stock.Symbol</div>
+                                                <small class="text-muted">@stock.CompanyName</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="fw-bold">@stock.CurrentPrice.ToString("C2")</div>
+                                                <small class="text-success fw-bold">
+                                                    +@stock.PriceChangePercent.ToString("F2")%
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="p-3 text-center text-muted">
+                                <i class="fas fa-chart-line mb-2"></i>
+                                <p class="mb-0">No gainers data available</p>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer">
+                        <a href="/stocks?sortBy=change&sortOrder=desc" class="btn btn-sm btn-outline-success w-100">
+                            View All Gainers
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Losers -->
+            <div class="col-lg-4 col-md-12 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-arrow-trend-down me-2"></i>Top Losers
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (marketOverview.TopLosers?.Any() == true)
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var stock in marketOverview.TopLosers.Take(5))
+                                {
+                                    <div class="list-group-item list-group-item-action stock-item" @onclick="() => ViewStock(stock.Symbol)">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="fw-bold">@stock.Symbol</div>
+                                                <small class="text-muted">@stock.CompanyName</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="fw-bold">@stock.CurrentPrice.ToString("C2")</div>
+                                                <small class="text-danger fw-bold">
+                                                    @stock.PriceChangePercent.ToString("F2")%
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="p-3 text-center text-muted">
+                                <i class="fas fa-chart-line mb-2"></i>
+                                <p class="mb-0">No losers data available</p>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer">
+                        <a href="/stocks?sortBy=change&sortOrder=asc" class="btn btn-sm btn-outline-danger w-100">
+                            View All Losers
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Most Active -->
+            <div class="col-lg-4 col-md-12 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-fire me-2"></i>Most Active
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (marketOverview.MostActive?.Any() == true)
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var stock in marketOverview.MostActive.Take(5))
+                                {
+                                    <div class="list-group-item list-group-item-action stock-item" @onclick="() => ViewStock(stock.Symbol)">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="fw-bold">@stock.Symbol</div>
+                                                <small class="text-muted">@stock.CompanyName</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="fw-bold">@stock.CurrentPrice.ToString("C2")</div>
+                                                <small class="text-muted">
+                                                    Vol: @FormatVolume(stock.Volume)
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="p-3 text-center text-muted">
+                                <i class="fas fa-chart-line mb-2"></i>
+                                <p class="mb-0">No active stocks data available</p>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer">
+                        <a href="/stocks?sortBy=volume&sortOrder=desc" class="btn btn-sm btn-outline-info w-100">
+                            View All Active
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Statistics Summary -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Market Summary
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3 mb-3">
+                                <div class="border-end">
+                                    <div class="h4 text-success mb-1">@GetTotalGainers()</div>
+                                    <small class="text-muted">Advancing Stocks</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="border-end">
+                                    <div class="h4 text-danger mb-1">@GetTotalLosers()</div>
+                                    <small class="text-muted">Declining Stocks</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="border-end">
+                                    <div class="h4 text-info mb-1">@GetTotalActive()</div>
+                                    <small class="text-muted">High Volume</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="h4 text-primary mb-1">@GetMarketSentiment()</div>
+                                <small class="text-muted">Market Sentiment</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-bolt me-2"></i>Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex gap-3 flex-wrap">
+                            <a href="/stocks" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>Browse All Stocks
+                            </a>
+                            <a href="/watchlists" class="btn btn-outline-info">
+                                <i class="fas fa-eye me-2"></i>My Watchlists
+                            </a>
+                            <a href="/portfolios" class="btn btn-outline-success">
+                                <i class="fas fa-briefcase me-2"></i>My Portfolios
+                            </a>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="ExportMarketData">
+                                <i class="fas fa-download me-2"></i>Export Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .stock-item {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+        .stock-item:hover {
+            background-color: #f8f9fa;
+        }
+
+    .market-status-open {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+
+    .market-status-closed {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white;
+    }
+
+    .market-status-pre {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: white;
+    }
+
+    .alert {
+        border: none;
+        border-radius: 10px;
+    }
+
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+    }
+
+    .list-group-item:first-child {
+        border-top: none;
+    }
+
+    .border-end {
+        border-right: 1px solid #dee2e6 !important;
+    }
+
+    @@media (max-width: 768px) {
+        .border-end
+
+    {
+        border-right: none !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        padding-bottom: 1rem;
+    }
+
+    .col-md-3:last-child .border-end {
+        border-bottom: none !important;
+        padding-bottom: 0;
+    }
+
+    }
+
+    .card {
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 10px;
+    }
+
+    .btn {
+        border-radius: 6px;
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private bool autoRefresh = false;
+    private MarketOverviewDto? marketOverview;
+    private Timer? refreshTimer;
+    private readonly int refreshIntervalMs = 30000; // 30 seconds
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMarketData();
+    }
+
+    protected override void OnInitialized()
+    {
+        // Start auto-refresh timer
+        if (autoRefresh)
+        {
+            StartAutoRefresh();
+        }
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    private async Task LoadMarketData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            marketOverview = await StockDataService.GetMarketOverviewAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading market data: {ex.Message}");
+            await JS.InvokeVoidAsync("showToast", "Error", "Failed to load market data", "error");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadMarketData();
+        await JS.InvokeVoidAsync("showToast", "Success", "Market data refreshed", "success");
+    }
+
+    private void ToggleAutoRefresh()
+    {
+        autoRefresh = !autoRefresh;
+
+        if (autoRefresh)
+        {
+            StartAutoRefresh();
+        }
+        else
+        {
+            StopAutoRefresh();
+        }
+
+        StateHasChanged();
+    }
+
+    private void StartAutoRefresh()
+    {
+        refreshTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadMarketData();
+            });
+        }, null, refreshIntervalMs, refreshIntervalMs);
+    }
+
+    private void StopAutoRefresh()
+    {
+        refreshTimer?.Dispose();
+        refreshTimer = null;
+    }
+
+    private void ViewStock(string symbol)
+    {
+        Navigation.NavigateTo($"/stocks/{symbol}");
+    }
+
+    private async Task ExportMarketData()
+    {
+        try
+        {
+            if (marketOverview == null) return;
+
+            var exportData = new
+            {
+                Timestamp = DateTime.UtcNow,
+                MarketOverview = marketOverview
+            };
+
+            var json = System.Text.Json.JsonSerializer.Serialize(exportData, new JsonSerializerOptions { WriteIndented = true });
+            var fileName = $"market-data-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+
+            await JS.InvokeVoidAsync("downloadFile", fileName, json, "application/json");
+            await JS.InvokeVoidAsync("showToast", "Success", "Market data exported successfully", "success");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting market data: {ex.Message}");
+            await JS.InvokeVoidAsync("showToast", "Error", "Failed to export market data", "error");
+        }
+    }
+
+    // Helper methods for market status
+    private string GetMarketStatusClass()
+    {
+        var easternTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"));
+        var currentTime = easternTime.TimeOfDay;
+        var currentDay = easternTime.DayOfWeek;
+
+        if (currentDay == DayOfWeek.Saturday || currentDay == DayOfWeek.Sunday)
+            return "market-status-closed";
+
+        if (currentTime >= new TimeSpan(9, 30, 0) && currentTime <= new TimeSpan(16, 0, 0))
+            return "market-status-open";
+        else if (currentTime >= new TimeSpan(4, 0, 0) && currentTime < new TimeSpan(9, 30, 0))
+            return "market-status-pre";
+        else
+            return "market-status-closed";
+    }
+
+    private string GetMarketStatusIcon()
+    {
+        return GetMarketStatusClass() switch
+        {
+            "market-status-open" => "fa-circle",
+            "market-status-pre" => "fa-clock",
+            _ => "fa-pause-circle"
+        };
+    }
+
+    private string GetMarketStatusText()
+    {
+        return GetMarketStatusClass() switch
+        {
+            "market-status-open" => "Open",
+            "market-status-pre" => "Pre-Market",
+            _ => "Closed"
+        };
+    }
+
+    private string FormatVolume(long volume)
+    {
+        if (volume >= 1_000_000_000)
+            return $"{volume / 1_000_000_000.0:F1}B";
+        else if (volume >= 1_000_000)
+            return $"{volume / 1_000_000.0:F1}M";
+        else if (volume >= 1_000)
+            return $"{volume / 1_000.0:F1}K";
+        else
+            return volume.ToString("N0");
+    }
+
+    private int GetTotalGainers()
+    {
+        return marketOverview?.TopGainers?.Count(s => s.PriceChangePercent > 0) ?? 0;
+    }
+
+    private int GetTotalLosers()
+    {
+        return marketOverview?.TopLosers?.Count(s => s.PriceChangePercent < 0) ?? 0;
+    }
+
+    private int GetTotalActive()
+    {
+        return marketOverview?.MostActive?.Count ?? 0;
+    }
+
+    private string GetMarketSentiment()
+    {
+        var gainers = GetTotalGainers();
+        var losers = GetTotalLosers();
+
+        if (gainers > losers * 1.5) return "Bullish";
+        if (losers > gainers * 1.5) return "Bearish";
+        return "Neutral";
+    }
+}
