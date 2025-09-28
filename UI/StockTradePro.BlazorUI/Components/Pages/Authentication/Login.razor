@@ -63,9 +63,13 @@
                     </div>
                 </EditForm>
                 <div class="form-footer">
-                    <a href="/forgot-password" class="link">Forgot your password?</a>
+                    <!-- UPDATED: Changed from <a> tag to button for modal navigation -->
+                    <button type="button" class="btn-link forgot-link" @onclick="ShowForgotPasswordModal">
+                        Forgot your password?
+                    </button>
                     <div class="signup-link">
-                        Don't have an account? <a href="/register" class="link">Sign up</a>
+                        Don't have an account?
+                        <button type="button" class="btn-link" @onclick="ShowRegisterModal">Sign up</button>
                     </div>
                 </div>
             </div>
@@ -75,9 +79,9 @@
 
 <style>
     /* The original .login-container and its background are removed
-            to make the component a true modal, not a full-page view.
-            The styling for the login-card is now directly applied to the modal-content.
-            */
+                to make the component a true modal, not a full-page view.
+                The styling for the login-card is now directly applied to the modal-content.
+                */
     .login-card {
         background: white;
         border-radius: 12px;
@@ -261,6 +265,29 @@
                 text-decoration: underline;
             }
 
+    /* NEW: Button link styles for modal navigation */
+    .btn-link {
+        background: none;
+        border: none;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        padding: 0;
+        transition: color 0.2s;
+    }
+
+        .btn-link:hover {
+            color: #5a67d8;
+            text-decoration: underline;
+        }
+
+    .forgot-link {
+        display: block;
+        margin-bottom: 12px;
+    }
+
     .signup-link {
         margin-top: 12px;
         font-size: 14px;
@@ -280,12 +307,19 @@
 </style>
 
 @code {
-    // Defines an event that the parent component can subscribe to.
+    // Existing event callbacks
     [Parameter]
     public EventCallback OnLoginSuccess { get; set; }
 
     [Parameter]
     public EventCallback OnCancel { get; set; }
+
+    // NEW: Event callbacks for modal navigation
+    [Parameter]
+    public EventCallback OnShowForgotPassword { get; set; }
+
+    [Parameter]
+    public EventCallback OnShowRegister { get; set; }
 
     // DTOs
     public class ValidatedUserLoginDto
@@ -345,6 +379,31 @@
         await OnCancel.InvokeAsync();
     }
 
+    // NEW: Modal navigation methods
+    private async Task ShowForgotPasswordModal()
+    {
+        // Close current modal
+        await JS.InvokeVoidAsync("hideBootstrapModal", "loginModal");
+
+        // Small delay to ensure smooth transition
+        await Task.Delay(150);
+
+        // Trigger parent to show forgot password modal
+        await OnShowForgotPassword.InvokeAsync();
+    }
+
+    private async Task ShowRegisterModal()
+    {
+        // Close current modal
+        await JS.InvokeVoidAsync("hideBootstrapModal", "loginModal");
+
+        // Small delay to ensure smooth transition
+        await Task.Delay(150);
+
+        // Trigger parent to show register modal
+        await OnShowRegister.InvokeAsync();
+    }
+
     private async Task AuthenticateUser(UserLoginDto loginDto)
     {
         // Simulate a successful API call after a delay
@@ -355,5 +414,14 @@
         {
             throw new Exception("Invalid credentials");
         }
-    }   
+    }
+    public async Task ShowAsync()
+    {
+        loginModel = new ValidatedUserLoginDto();
+        errorMessage = string.Empty;
+        isLoading = false;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("showBootstrapModal", "loginModal");
+    }
+
 }

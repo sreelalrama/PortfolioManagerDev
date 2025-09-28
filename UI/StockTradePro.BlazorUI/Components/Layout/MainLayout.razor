@@ -155,12 +155,23 @@
 
 <!--  Login modal  -->
 <div >
-    <StockTradePro.BlazorUI.Components.Pages.Authentication.Login OnLoginSuccess="HandleLoginCompleted"></StockTradePro.BlazorUI.Components.Pages.Authentication.Login>
+    <StockTradePro.BlazorUI.Components.Pages.Authentication.Login OnLoginSuccess="HandleLoginCompleted"
+                                                                  OnShowForgotPassword="ShowForgotPasswordModal"
+                                                                  OnShowRegister="ShowRegisterModal"
+                                                                  OnCancel="@(() => Task.CompletedTask)">
+</StockTradePro.BlazorUI.Components.Pages.Authentication.Login>
 </div>
 
 <!--  Register modal  -->
 <div >
     <StockTradePro.BlazorUI.Components.Pages.Authentication.Register ></StockTradePro.BlazorUI.Components.Pages.Authentication.Register>
+</div>
+
+<div>
+    <StockTradePro.BlazorUI.Components.Pages.Authentication.ForgotPassword OnCancel="HandleForgotPasswordCancel"
+                                                                           OnShowLogin="ShowLoginModal"
+                                                                           OnShowRegister="ShowRegisterModal">
+    </StockTradePro.BlazorUI.Components.Pages.Authentication.ForgotPassword>
 </div>
 
 <!-- Bootstrap JavaScript -->
@@ -538,5 +549,17 @@
         Console.WriteLine("Initialize called");
 
         base.OnInitialized();
+    }
+
+    private async Task ShowForgotPasswordModal()
+    {
+        await JS.InvokeVoidAsync("showBootstrapModal", "forgotPasswordModal");
+    }
+
+    // NEW: Add this method
+    private async Task HandleForgotPasswordCancel()
+    {
+        // Optional cleanup
+        await Task.CompletedTask;
     }
 }
