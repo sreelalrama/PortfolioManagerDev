@@ -1,1 +1,512 @@
- 
+@namespace StockTradePro.BlazorUI.Components.Shared
+@inject IJSRuntime JS
+
+<div class="modal fade @(IsVisible ? "show" : "")"
+     id="@ModalId"
+     tabindex="-1"
+     aria-labelledby="@($"{ModalId}Label")"
+     aria-hidden="@(!IsVisible)"
+     style="@(IsVisible ? "display: block;" : "display: none;")"
+     @onclick="HandleBackdropClick">
+
+    <div class="modal-dialog @GetModalSizeClass() @(CenterVertically ? "modal-dialog-centered" : "")"
+         @onclick:stopPropagation="true">
+        <div class="modal-content confirmation-modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header @GetHeaderClass()">
+                <div class="d-flex align-items-center">
+                    @if (ShowIcon)
+                    {
+                        <div class="modal-icon me-3">
+                            <i class="@GetIconClass()"></i>
+                        </div>
+                    }
+                    <div>
+                        <h5 class="modal-title mb-0" id="@($"{ModalId}Label")">
+                            @Title
+                        </h5>
+                        @if (!string.IsNullOrEmpty(Subtitle))
+                        {
+                            <small class="text-muted">@Subtitle</small>
+                        }
+                    </div>
+                </div>
+
+                @if (ShowCloseButton)
+                {
+                    <button type="button"
+                            class="btn-close"
+                            aria-label="Close"
+                            @onclick="HandleCancel">
+                    </button>
+                }
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(Message))
+                {
+                    <div class="confirmation-message">
+                        @((MarkupString)Message)
+                    </div>
+                }
+
+                @if (ChildContent != null)
+                {
+                    <div class="confirmation-content">
+                        @ChildContent
+                    </div>
+                }
+
+                @if (ShowDetails && !string.IsNullOrEmpty(Details))
+                {
+                    <div class="confirmation-details mt-3">
+                        <div class="details-toggle" @onclick="ToggleDetailsExpanded">
+                            <small class="text-muted">
+                                <i class="fas @(detailsExpanded ? "fa-chevron-up" : "fa-chevron-down") me-1"></i>
+                                @(detailsExpanded ? "Hide" : "Show") Details
+                            </small>
+                        </div>
+
+                        @if (detailsExpanded)
+                        {
+                            <div class="details-content mt-2 p-3 bg-light rounded">
+                                <small class="text-muted">@((MarkupString)Details)</small>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (RequireConfirmation)
+                {
+                    <div class="confirmation-input mt-3">
+                        <label class="form-label small text-muted">
+                            Type <strong>@ConfirmationText</strong> to confirm:
+                        </label>
+                        <input type="text"
+                               class="form-control form-control-sm"
+                               @bind="confirmationInput"
+                               @oninput="HandleConfirmationInput"
+                               placeholder="@ConfirmationText" />
+                    </div>
+                }
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer @GetFooterClass()">
+                @if (ShowCancelButton)
+                {
+                    <button type="button"
+                            class="btn @CancelButtonClass"
+                            @onclick="HandleCancel"
+                            disabled="@isProcessing">
+                        @if (isProcessing && processingAction == "cancel")
+                        {
+                            <LoadingSpinner IsInline="true"
+                                            Size="LoadingSpinner.LoadingSize.Small"
+                                            ShowMessage="false" />
+                        }
+                        @CancelButtonText
+                    </button>
+                }
+
+                @if (ShowSecondaryButton && !string.IsNullOrEmpty(SecondaryButtonText))
+                {
+                    <button type="button"
+                            class="btn @SecondaryButtonClass"
+                            @onclick="HandleSecondary"
+                            disabled="@isProcessing">
+                        @if (isProcessing && processingAction == "secondary")
+                        {
+                            <LoadingSpinner IsInline="true"
+                                            Size="LoadingSpinner.LoadingSize.Small"
+                                            ShowMessage="false" />
+                        }
+                        @SecondaryButtonText
+                    </button>
+                }
+
+                <button type="button"
+                        class="btn @ConfirmButtonClass"
+                        @onclick="HandleConfirm"
+                        disabled="@(!CanConfirm || isProcessing)">
+                    @if (isProcessing && processingAction == "confirm")
+                    {
+                        <LoadingSpinner IsInline="true"
+                                        Size="LoadingSpinner.LoadingSize.Small"
+                                        ShowMessage="false" />
+                    }
+                    @ConfirmButtonText
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+<style>
+    .confirmation-modal-content {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .modal-header.header-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header.header-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: #212529;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header.header-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header.header-success {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        color: white;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .modal-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+    }
+
+    .modal-header.header-warning .modal-icon,
+    .modal-header.header-default .modal-icon {
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .confirmation-message {
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #495057;
+    }
+
+    .confirmation-content {
+        margin-top: 1rem;
+    }
+
+    .details-toggle {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.2s ease;
+    }
+
+        .details-toggle:hover {
+            color: #007bff !important;
+        }
+
+    .details-content {
+        animation: slideDown 0.3s ease-out;
+        border: 1px solid #e9ecef;
+    }
+
+    @@keyframes slideDown {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    .confirmation-input {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+    }
+
+        .confirmation-input input:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+        }
+
+    .modal-footer.footer-danger {
+        border-top: 1px solid #f8d7da;
+        background: #f8f9fa;
+        border-radius: 0 0 12px 12px;
+    }
+
+    .modal-footer.footer-warning {
+        border-top: 1px solid #ffeaa7;
+        background: #f8f9fa;
+        border-radius: 0 0 12px 12px;
+    }
+
+    .modal-footer.footer-info,
+    .modal-footer.footer-success {
+        border-top: 1px solid #e2e3e5;
+        background: #f8f9fa;
+        border-radius: 0 0 12px 12px;
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    /* Animation for modal show/hide */
+    .modal.show {
+        animation: modalFadeIn 0.3s ease-out;
+    }
+
+    @@keyframes modalFadeIn {
+        from
+
+    {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 576px) {
+        .modal-dialog
+
+    {
+        margin: 1rem;
+    }
+
+    .modal-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.25rem;
+    }
+
+    .confirmation-modal-content {
+        border-radius: 8px;
+    }
+
+    }
+</style>
+
+@code {
+    [Parameter] public string ModalId { get; set; } = $"confirmModal_{Guid.NewGuid():N}";
+    [Parameter] public bool IsVisible { get; set; } = false;
+    [Parameter] public string Title { get; set; } = "Confirm Action";
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string Message { get; set; } = "Are you sure you want to proceed?";
+    [Parameter] public string? Details { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    // Button Configuration
+    [Parameter] public string ConfirmButtonText { get; set; } = "Confirm";
+    [Parameter] public string CancelButtonText { get; set; } = "Cancel";
+    [Parameter] public string? SecondaryButtonText { get; set; }
+    [Parameter] public bool ShowCancelButton { get; set; } = true;
+    [Parameter] public bool ShowSecondaryButton { get; set; } = false;
+    [Parameter] public bool ShowCloseButton { get; set; } = true;
+
+    // Styling
+    [Parameter] public ConfirmationType Type { get; set; } = ConfirmationType.Danger;
+    [Parameter] public ModalSize Size { get; set; } = ModalSize.Default;
+    [Parameter] public bool ShowIcon { get; set; } = true;
+    [Parameter] public bool ShowDetails { get; set; } = false;
+    [Parameter] public bool CenterVertically { get; set; } = true;
+
+    // Behavior
+    [Parameter] public bool CloseOnBackdropClick { get; set; } = true;
+    [Parameter] public bool RequireConfirmation { get; set; } = false;
+    [Parameter] public string ConfirmationText { get; set; } = "DELETE";
+    [Parameter] public bool AutoFocus { get; set; } = true;
+
+    // Events
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnSecondary { get; set; }
+
+    // State
+    private bool detailsExpanded = false;
+    private string confirmationInput = "";
+    private bool isProcessing = false;
+    private string processingAction = "";
+
+    private bool CanConfirm =>
+        !RequireConfirmation ||
+        confirmationInput.Equals(ConfirmationText, StringComparison.OrdinalIgnoreCase);
+
+    private string ConfirmButtonClass => Type switch
+    {
+        ConfirmationType.Danger => "btn-danger",
+        ConfirmationType.Warning => "btn-warning",
+        ConfirmationType.Info => "btn-primary",
+        ConfirmationType.Success => "btn-success",
+        _ => "btn-danger"
+    };
+
+    private string CancelButtonClass => "btn-outline-secondary";
+    private string SecondaryButtonClass => "btn-outline-primary";
+
+    private string GetHeaderClass() => $"header-{Type.ToString().ToLower()}";
+    private string GetFooterClass() => $"footer-{Type.ToString().ToLower()}";
+
+    private string GetModalSizeClass() => Size switch
+    {
+        ModalSize.Small => "modal-sm",
+        ModalSize.Large => "modal-lg",
+        ModalSize.ExtraLarge => "modal-xl",
+        _ => ""
+    };
+
+    private string GetIconClass() => Type switch
+    {
+        ConfirmationType.Danger => "fas fa-exclamation-triangle",
+        ConfirmationType.Warning => "fas fa-exclamation-circle",
+        ConfirmationType.Info => "fas fa-info-circle",
+        ConfirmationType.Success => "fas fa-check-circle",
+        _ => "fas fa-question-circle"
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && IsVisible && AutoFocus)
+        {
+            await Task.Delay(100); // Allow modal to render
+            await JS.InvokeVoidAsync("eval", $"document.querySelector('#{ModalId} .btn-{Type.ToString().ToLower()}')?.focus()");
+        }
+    }
+
+    private async Task HandleConfirm()
+    {
+        if (!CanConfirm || isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            processingAction = "confirm";
+            StateHasChanged();
+
+            await OnConfirm.InvokeAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+            processingAction = "";
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            processingAction = "cancel";
+            StateHasChanged();
+
+            await OnCancel.InvokeAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+            processingAction = "";
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSecondary()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            processingAction = "secondary";
+            StateHasChanged();
+
+            await OnSecondary.InvokeAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+            processingAction = "";
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        if (CloseOnBackdropClick && !isProcessing)
+        {
+            await HandleCancel();
+        }
+    }
+
+    private void ToggleDetailsExpanded()
+    {
+        detailsExpanded = !detailsExpanded;
+    }
+
+    private void HandleConfirmationInput(ChangeEventArgs e)
+    {
+        confirmationInput = e.Value?.ToString() ?? "";
+        StateHasChanged();
+    }
+
+    // Public methods for external control
+    public async Task ShowAsync()
+    {
+        IsVisible = true;
+        confirmationInput = "";
+        detailsExpanded = false;
+        StateHasChanged();
+    }
+
+    public async Task HideAsync()
+    {
+        IsVisible = false;
+        StateHasChanged();
+    }
+
+    public enum ConfirmationType
+    {
+        Danger,   // Red - for destructive actions
+        Warning,  // Yellow - for potentially harmful actions
+        Info,     // Blue - for informational confirmations
+        Success   // Green - for positive confirmations
+    }
+
+    public enum ModalSize
+    {
+        Small,
+        Default,
+        Large,
+        ExtraLarge
+    }
+}

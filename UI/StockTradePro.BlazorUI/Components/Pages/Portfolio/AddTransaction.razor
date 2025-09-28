@@ -1,1 +1,1194 @@
- 
+@page "/portfolios/{portfolioId:int}/transactions/add"
+@using StockTradePro.BlazorUI.Models.Portfolio
+@using StockTradePro.BlazorUI.Models.Stocks
+@using StockTradePro.BlazorUI.Components.Shared
+@using System.ComponentModel.DataAnnotations
+@inject IPortfolioService PortfolioService
+@inject IStockDataService StockDataService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Add Transaction - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-2">
+                            <li class="breadcrumb-item">
+                                <a href="/portfolios" class="text-decoration-none">
+                                    <i class="fas fa-briefcase me-1"></i>Portfolios
+                                </a>
+                            </li>
+                            @if (portfolio != null)
+                            {
+                                <li class="breadcrumb-item">
+                                    <a href="/portfolios/@PortfolioId" class="text-decoration-none">
+                                        @portfolio.Name
+                                    </a>
+                                </li>
+                            }
+                            <li class="breadcrumb-item active" aria-current="page">Add Transaction</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-plus-circle me-2 text-primary"></i>Add Transaction
+                        @if (portfolio != null)
+                        {
+                            <span class="text-muted">- @portfolio.Name</span>
+                        }
+                    </h1>
+                    <p class="text-muted mb-0">Record a buy or sell transaction for your portfolio</p>
+                </div>
+                <div>
+                    <a href="/portfolios/@PortfolioId" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Portfolio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingSpinner Type="LoadingSpinner.LoadingType.Custom" 
+                        Message="Loading portfolio details..." />
+    }
+    else if (portfolio == null)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card text-center">
+                    <div class="card-body py-5">
+                        <i class="fas fa-exclamation-circle fa-4x text-warning mb-3"></i>
+                        <h4>Portfolio Not Found</h4>
+                        <p class="text-muted">The portfolio you're trying to add a transaction to doesn't exist or you don't have permission to access it.</p>
+                        <a href="/portfolios" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Portfolios
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- Transaction Form -->
+            <div class="col-lg-8">
+                <div class="card transaction-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-exchange-alt me-2"></i>Transaction Details
+                        </h5>
+                        <small class="text-muted">Fill in the transaction information below</small>
+                    </div>
+
+                    <div class="card-body">
+                        <EditForm Model="@transactionModel" OnValidSubmit="@HandleValidSubmit" FormName="AddTransactionForm">
+                            <DataAnnotationsValidator />
+
+                            <!-- Transaction Type -->
+                            <div class="form-group mb-4">
+                                <label class="form-label required">
+                                    <i class="fas fa-exchange-alt me-1"></i>Transaction Type
+                                </label>
+                                <div class="transaction-type-selector">
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" 
+                                               name="transactionType" 
+                                               id="buyType" 
+                                               value="BUY"
+                                               checked="@(transactionModel.Type == "BUY")"
+                                               @onchange="@(() => OnTransactionTypeChanged("BUY"))">
+
+                                        <label class="btn btn-outline-success flex-fill" for="buyType">
+                                            <i class="fas fa-arrow-up me-2"></i>
+                                            <div>
+                                                <strong>BUY</strong>
+                                                <small class="d-block">Purchase shares</small>
+                                            </div>
+                                        </label>
+
+                                        <input type="radio" class="btn-check" 
+                                               name="transactionType" 
+                                               id="sellType" 
+                                               value="SELL"
+                                               checked="@(transactionModel.Type == "SELL")"
+                                               @onchange="@(() => OnTransactionTypeChanged("SELL"))">
+                                        <label class="btn btn-outline-danger flex-fill" for="sellType">
+                                            <i class="fas fa-arrow-down me-2"></i>
+                                            <div>
+                                                <strong>SELL</strong>
+                                                <small class="d-block">Sell shares</small>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                                <ValidationMessage For="@(() => transactionModel.Type)" class="validation-message" />
+                            </div>
+
+                            <!-- Stock Symbol -->
+                            <div class="form-group mb-4">
+                                <label for="stockSymbol" class="form-label required">
+                                    <i class="fas fa-chart-line me-1"></i>Stock Symbol
+                                </label>
+                                <div class="input-group">
+                                    <input type="text" 
+                                           id="stockSymbol"
+                                           class="form-control @(GetFieldCssClass(nameof(transactionModel.Symbol)))"
+                                           @bind="transactionModel.Symbol"
+                                           @bind:event="oninput"
+                                           @onblur="ValidateStock"
+                                           placeholder="e.g., AAPL, GOOGL, MSFT"
+                                           style="text-transform: uppercase"
+                                           maxlength="10" />
+                                    <button type="button" 
+                                            class="btn btn-outline-secondary" 
+                                            @onclick="ValidateStock"
+                                            disabled="@(string.IsNullOrEmpty(transactionModel.Symbol) || isValidatingStock)">
+                                        @if (isValidatingStock)
+                                        {
+                                            <LoadingSpinner IsInline="true" 
+                                                          Size="LoadingSpinner.LoadingSize.Small" 
+                                                          ShowMessage="false" />
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-search"></i>
+                                        }
+                                    </button>
+                                </div>
+                                <ValidationMessage For="@(() => transactionModel.Symbol)" class="validation-message" />
+                                
+                                @if (selectedStock != null)
+                                {
+                                    <div class="stock-info mt-2 p-3 bg-light rounded">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-3">
+                                                @if (!string.IsNullOrEmpty(selectedStock.LogoUrl))
+                                                {
+                                                    <img src="@selectedStock.LogoUrl" alt="@selectedStock.Symbol" class="stock-logo" />
+                                                }
+                                                else
+                                                {
+                                                    <div class="stock-logo-placeholder">
+                                                        <i class="fas fa-building"></i>
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">@selectedStock.CompanyName</h6>
+                                                <small class="text-muted">@selectedStock.Exchange • @selectedStock.Sector</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="h5 mb-0">@selectedStock.CurrentPrice.ToString("C2")</div>
+                                                <small class="@(selectedStock.PriceChange >= 0 ? "text-success" : "text-danger")">
+                                                    @selectedStock.PriceChange.ToString("+0.00;-0.00;0.00") 
+                                                    (@selectedStock.PriceChangePercent.ToString("F2")%)
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else if (!string.IsNullOrEmpty(stockValidationError))
+                                {
+                                    <div class="alert alert-warning mt-2">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>@stockValidationError
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Quantity and Price Row -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-4">
+                                        <label for="quantity" class="form-label required">
+                                            <i class="fas fa-layer-group me-1"></i>Quantity
+                                        </label>
+                                        <input type="number" 
+                                               id="quantity"
+                                               class="form-control @(GetFieldCssClass(nameof(transactionModel.Quantity)))"
+                                               @bind="transactionModel.Quantity"
+                                               @bind:event="oninput"
+                                               @onchange="CalculateTotals"
+                                               placeholder="Number of shares"
+                                               min="1" />
+                                        <ValidationMessage For="@(() => transactionModel.Quantity)" class="validation-message" />
+                                        @if (selectedStock != null && transactionModel.Quantity > 0)
+                                        {
+                                            <div class="form-text">
+                                                <button type="button" class="btn btn-link btn-sm p-0" @onclick="UseCurrentPrice">
+                                                    Use current price (@selectedStock.CurrentPrice.ToString("C2"))
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-4">
+                                        <label for="price" class="form-label required">
+                                            <i class="fas fa-dollar-sign me-1"></i>Price per Share
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" 
+                                                   id="price"
+                                                   class="form-control @(GetFieldCssClass(nameof(transactionModel.Price)))"
+                                                   @bind="transactionModel.Price"
+                                                   @bind:event="oninput"
+                                                   @onchange="CalculateTotals"
+                                                   placeholder="0.00"
+                                                   step="0.01"
+                                                   min="0.01" />
+                                        </div>
+                                        <ValidationMessage For="@(() => transactionModel.Price)" class="validation-message" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Transaction Date and Fees Row -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-4">
+                                        <label for="transactionDate" class="form-label">
+                                            <i class="fas fa-calendar me-1"></i>Transaction Date
+                                            <span class="text-muted">(Optional)</span>
+                                        </label>
+                                        <input type="date" 
+                                               id="transactionDate"
+                                               class="form-control @(GetFieldCssClass(nameof(transactionModel.TransactionDate)))"
+                                               @bind="transactionModel.TransactionDate"
+                                               max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                                        <div class="form-text">Leave blank to use current date and time</div>
+                                        <ValidationMessage For="@(() => transactionModel.TransactionDate)" class="validation-message" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-4">
+                                        <label for="fees" class="form-label">
+                                            <i class="fas fa-receipt me-1"></i>Fees & Commissions
+                                            <span class="text-muted">(Optional)</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" 
+                                                   id="fees"
+                                                   class="form-control @(GetFieldCssClass(nameof(transactionModel.Fees)))"
+                                                   @bind="transactionModel.Fees"
+                                                   @bind:event="oninput"
+                                                   @onchange="CalculateTotals"
+                                                   placeholder="0.00"
+                                                   step="0.01"
+                                                   min="0" />
+                                        </div>
+                                        <ValidationMessage For="@(() => transactionModel.Fees)" class="validation-message" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="form-group mb-4">
+                                <label for="notes" class="form-label">
+                                    <i class="fas fa-sticky-note me-1"></i>Notes
+                                    <span class="text-muted">(Optional)</span>
+                                </label>
+                                <textarea id="notes"
+                                          class="form-control @(GetFieldCssClass(nameof(transactionModel.Notes)))"
+                                          @bind="transactionModel.Notes"
+                                          placeholder="Add any notes about this transaction..."
+                                          rows="3"
+                                          maxlength="500"></textarea>
+                                <div class="form-text">
+                                    <span class="character-count">@(transactionModel.Notes?.Length ?? 0)/500 characters</span>
+                                </div>
+                                <ValidationMessage For="@(() => transactionModel.Notes)" class="validation-message" />
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="form-actions">
+                                <div class="d-flex gap-3">
+                                    <button type="button" 
+                                            class="btn btn-outline-secondary"
+                                            @onclick="HandleCancel"
+                                            disabled="@isSubmitting">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </button>
+                                    
+                                    <button type="submit" 
+                                            class="btn @(transactionModel.Type == "BUY" ? "btn-success" : "btn-danger") flex-fill"
+                                            disabled="@isSubmitting">
+                                        @if (isSubmitting)
+                                        {
+                                            <LoadingSpinner IsInline="true" 
+                                                          Size="LoadingSpinner.LoadingSize.Small" 
+                                                          ShowMessage="false" />
+                                            <span class="ms-2">Processing @transactionModel.Type...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas @(transactionModel.Type == "BUY" ? "fa-arrow-up" : "fa-arrow-down") me-1"></i>
+                                            <span>@transactionModel.Type @transactionModel.Symbol</span>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Summary -->
+            <div class="col-lg-4">
+                <div class="card summary-card sticky-top">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-calculator me-2"></i>Transaction Summary
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="summary-item">
+                            <label>Transaction Type</label>
+                            <div class="value @(transactionModel.Type == "BUY" ? "text-success" : "text-danger")">
+                                @if (!string.IsNullOrEmpty(transactionModel.Type))
+                                {
+                                    <i class="fas @(transactionModel.Type == "BUY" ? "fa-arrow-up" : "fa-arrow-down") me-1"></i>
+                                    @transactionModel.Type
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Not selected</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="summary-item">
+                            <label>Stock</label>
+                            <div class="value">
+                                @if (!string.IsNullOrEmpty(transactionModel.Symbol))
+                                {
+                                    <span>@transactionModel.Symbol</span>
+                                    @if (selectedStock != null)
+                                    {
+                                        <small class="d-block text-muted">@selectedStock.CompanyName</small>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Not specified</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="summary-item">
+                            <label>Quantity</label>
+                            <div class="value">
+                                @if (transactionModel.Quantity > 0)
+                                {
+                                    <span>@transactionModel.Quantity.ToString("N0") shares</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">0 shares</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="summary-item">
+                            <label>Price per Share</label>
+                            <div class="value">
+                                @if (transactionModel.Price > 0)
+                                {
+                                    <span>@transactionModel.Price.ToString("C2")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">$0.00</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="summary-item">
+                            <label>Subtotal</label>
+                            <div class="value">@calculatedSubtotal.ToString("C2")</div>
+                        </div>
+
+                        <div class="summary-item">
+                            <label>Fees</label>
+                            <div class="value">@transactionModel.Fees.ToString("C2")</div>
+                        </div>
+
+                        <hr class="my-3">
+
+                        <div class="summary-item total">
+                            <label>Total @transactionModel.Type</label>
+                            <div class="value h5 mb-0 @(transactionModel.Type == "BUY" ? "text-success" : "text-danger")">
+                                @calculatedTotal.ToString("C2")
+                            </div>
+                        </div>
+
+                        @if (selectedStock != null && transactionModel.Quantity > 0)
+                        {
+                            <div class="mt-3 pt-3 border-top">
+                                <small class="text-muted">
+                                    <strong>Market Impact:</strong><br>
+                                    Current market value: @((selectedStock.CurrentPrice * transactionModel.Quantity).ToString("C2"))<br>
+                                    @if (transactionModel.Price > 0)
+                                    {
+                                        var difference = (transactionModel.Price - selectedStock.CurrentPrice) * transactionModel.Quantity;
+                                        <span class="@(difference >= 0 ? "text-success" : "text-danger")">
+                                            Difference: @difference.ToString("+C2;-C2;C2")
+                                        </span>
+                                    }
+                                </small>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Portfolio Holdings (if selling) -->
+                @if (transactionModel.Type == "SELL" && !string.IsNullOrEmpty(transactionModel.Symbol) && currentHolding != null)
+                {
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-chart-pie me-2"></i>Current Holdings
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="holding-info">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Shares Owned</span>
+                                    <strong>@currentHolding.Quantity</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Average Cost</span>
+                                    <span>@currentHolding.AverageCost.ToString("C2")</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Current Value</span>
+                                    <span>@currentHolding.CurrentValue.ToString("C2")</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Unrealized P&L</span>
+                                    <span class="@(currentHolding.UnrealizedGainLoss >= 0 ? "text-success" : "text-danger")">
+                                        @currentHolding.UnrealizedGainLoss.ToString("C2")
+                                    </span>
+                                </div>
+                                @if (transactionModel.Quantity > currentHolding.Quantity)
+                                {
+                                    <div class="alert alert-warning mt-2">
+                                        <small>
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            You're trying to sell more shares than you own.
+                                        </small>
+                                    </div>
+                                }
+                                else if (transactionModel.Quantity > 0)
+                                {
+                                    <div class="mt-2 pt-2 border-top">
+                                        <small class="text-muted">
+                                            <strong>After Sale:</strong><br>
+                                            Remaining shares: @(currentHolding.Quantity - transactionModel.Quantity)<br>
+                                            @if (transactionModel.Price > 0)
+                                            {
+                                                var saleValue = transactionModel.Quantity * transactionModel.Price;
+                                                var costBasis = transactionModel.Quantity * currentHolding.AverageCost;
+                                                var gainLoss = saleValue - costBasis;
+                                                <span class="@(gainLoss >= 0 ? "text-success" : "text-danger")">
+                                                    Realized P&L: @gainLoss.ToString("+C2;-C2;C2")
+                                                </span>
+                                            }
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (transactionModel.Type == "SELL" && !string.IsNullOrEmpty(transactionModel.Symbol) && currentHolding == null)
+                {
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>No Holdings Found</strong><br>
+                                You don't currently own any shares of @transactionModel.Symbol in this portfolio.
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Quick Actions -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-bolt me-2"></i>Quick Actions
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            @if (selectedStock != null)
+                            {
+                                <button type="button" class="btn btn-outline-info btn-sm" @onclick="UseCurrentPrice">
+                                    <i class="fas fa-chart-line me-1"></i>Use Market Price (@selectedStock.CurrentPrice.ToString("C2"))
+                                </button>
+                            }
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ClearForm">
+                                <i class="fas fa-eraser me-1"></i>Clear Form
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" @onclick="SaveDraft">
+                                <i class="fas fa-save me-1"></i>Save Draft
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Loading Overlay -->
+<LoadingSpinner IsVisible="@isSubmitting" 
+                IsOverlay="true" 
+                Type="LoadingSpinner.LoadingType.Custom"
+                Message="Processing your transaction..." />
+
+<!-- Confirmation Modal -->
+<ConfirmationModal IsVisible="@showConfirmationModal"
+                   Type="@(transactionModel.Type == "BUY" ? ConfirmationModal.ConfirmationType.Info : ConfirmationModal.ConfirmationType.Warning)"
+                   Title="Confirm Transaction"
+                   ConfirmButtonText="@($"Execute {transactionModel.Type}")"
+                   OnConfirm="ExecuteTransaction"
+                   OnCancel="() => showConfirmationModal = false">
+    <div class="transaction-confirmation">
+        <div class="row mb-3">
+            <div class="col-6"><strong>Action:</strong></div>
+            <div class="col-6">@transactionModel.Type @transactionModel.Quantity shares</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-6"><strong>Stock:</strong></div>
+            <div class="col-6">@transactionModel.Symbol @if(selectedStock != null){<small class="text-muted">(@selectedStock.CompanyName)</small>}</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-6"><strong>Price per Share:</strong></div>
+            <div class="col-6">@transactionModel.Price.ToString("C2")</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-6"><strong>Fees:</strong></div>
+            <div class="col-6">@transactionModel.Fees.ToString("C2")</div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-6"><strong>Total @transactionModel.Type:</strong></div>
+            <div class="col-6"><strong class="@(transactionModel.Type == "BUY" ? "text-success" : "text-danger")">@calculatedTotal.ToString("C2")</strong></div>
+        </div>
+    </div>
+</ConfirmationModal>
+
+<style>
+    .transaction-card {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-radius: 12px;
+    }
+
+    .summary-card {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        top: 1rem;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px 12px 0 0;
+        padding: 1.5rem;
+    }
+
+    .required::after {
+        content: " *";
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    .form-group {
+        position: relative;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control,
+    .form-select {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    .validation-message {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: block;
+        animation: slideInUp 0.3s ease-out;
+    }
+
+    .form-text {
+        color: #6c757d;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    .character-count {
+        float: right;
+        font-size: 0.8rem;
+        color: #adb5bd;
+    }
+
+    .transaction-type-selector .btn-outline-success.active,
+    .transaction-type-selector .btn-check:checked + .btn-outline-success {
+        background-color: #28a745;
+        border-color: #28a745;
+        color: white;
+    }
+
+    .transaction-type-selector .btn-outline-danger.active,
+    .transaction-type-selector .btn-check:checked + .btn-outline-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: white;
+    }
+
+    .transaction-type-selector .btn {
+        padding: 1rem;
+        border-width: 2px;
+    }
+
+    .stock-info {
+        border: 1px solid #28a745;
+        background: #f8fff8;
+    }
+
+    .stock-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        object-fit: cover;
+    }
+
+    .stock-logo-placeholder {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f8f9fa;
+    }
+
+    .summary-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .summary-item.total {
+        border-bottom: none;
+        padding-top: 0.5rem;
+    }
+
+    .summary-item label {
+        font-weight: 600;
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    .summary-item .value {
+        font-weight: 600;
+        text-align: right;
+        flex-grow: 1;
+        margin-left: 1rem;
+    }
+
+    .form-actions {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .holding-info {
+        font-size: 0.9rem;
+    }
+
+    .breadcrumb {
+        background: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/";
+        color: #6c757d;
+    }
+
+    .breadcrumb-item a {
+        color: #667eea;
+    }
+
+    .breadcrumb-item.active {
+        color: #6c757d;
+    }
+
+    .transaction-confirmation {
+        font-size: 0.95rem;
+    }
+
+    @@keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 992px) {
+        .sticky-top {
+            position: relative !important;
+            top: auto !important;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .transaction-card,
+        .summary-card {
+            margin: 0 -15px;
+            border-radius: 0;
+        }
+
+        .card-header {
+            border-radius: 0;
+        }
+
+        .form-actions .d-flex {
+            flex-direction: column;
+        }
+
+        .form-actions .btn {
+            margin-bottom: 0.5rem;
+        }
+
+        .transaction-type-selector .btn {
+            padding: 0.75rem;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public int PortfolioId { get; set; }
+
+    private PortfolioDto? portfolio;
+    private AddTransactionModel transactionModel = new();
+    private StockDto? selectedStock;
+    private HoldingDto? currentHolding;
+    
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool isValidatingStock = false;
+    private bool showConfirmationModal = false;
+    private string? stockValidationError;
+
+    // Calculated values
+    private double calculatedSubtotal => transactionModel.Quantity * transactionModel.Price;
+    private double calculatedTotal => transactionModel.Type == "BUY" 
+        ? calculatedSubtotal + transactionModel.Fees 
+        : calculatedSubtotal - transactionModel.Fees;
+
+    public class AddTransactionModel
+    {
+        [Required(ErrorMessage = "Transaction type is required")]
+        public string Type { get; set; } = "BUY";
+
+        [Required(ErrorMessage = "Stock symbol is required")]
+        [StringLength(10, ErrorMessage = "Symbol cannot exceed 10 characters")]
+        [MinLength(1, ErrorMessage = "Symbol is required")]
+        public string Symbol { get; set; } = "";
+
+        [Required(ErrorMessage = "Quantity is required")]
+        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
+        public int Quantity { get; set; }
+
+        [Required(ErrorMessage = "Price is required")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than $0.00")]
+        public double Price { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Fees cannot be negative")]
+        public double Fees { get; set; } = 0;
+
+        public DateTime? TransactionDate { get; set; }
+
+        [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters")]
+        public string? Notes { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPortfolio();
+        
+        // Check for query parameters (pre-filled symbol)
+        var uri = new Uri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("symbol", out var symbol))
+        {
+            transactionModel.Symbol = symbol.ToString().ToUpperInvariant();
+            await ValidateStock();
+        }
+
+        // Load draft if exists
+        await LoadDraft();
+    }
+
+    private async Task LoadPortfolio()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            portfolio = await PortfolioService.GetPortfolioAsync(PortfolioId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading portfolio: {ex.Message}");
+            await JS.InvokeVoidAsync("showToast", 
+                "Error", 
+                "Failed to load portfolio details.", 
+                "error");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ValidateStock()
+    {
+        if (string.IsNullOrWhiteSpace(transactionModel.Symbol))
+        {
+            selectedStock = null;
+            currentHolding = null;
+            stockValidationError = null;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            isValidatingStock = true;
+            stockValidationError = null;
+            StateHasChanged();
+
+            var symbol = transactionModel.Symbol.Trim().ToUpperInvariant();
+            selectedStock = await StockDataService.GetStockAsync(symbol);
+
+            if (selectedStock != null)
+            {
+                // Update the model with the validated symbol
+                transactionModel.Symbol = selectedStock.Symbol;
+                
+                // Pre-fill with current market price if no price set
+                if (transactionModel.Price <= 0)
+                {
+                    transactionModel.Price = selectedStock.CurrentPrice;
+                }
+
+                // Load current holding if selling
+                await LoadCurrentHolding();
+            }
+            else
+            {
+                stockValidationError = $"Stock symbol '{symbol}' not found. Please verify the symbol and try again.";
+                currentHolding = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error validating stock: {ex.Message}");
+            stockValidationError = "Unable to validate stock symbol. Please try again.";
+            selectedStock = null;
+            currentHolding = null;
+        }
+        finally
+        {
+            isValidatingStock = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCurrentHolding()
+    {
+        if (transactionModel.Type == "SELL" && !string.IsNullOrEmpty(transactionModel.Symbol) && portfolio != null)
+        {
+            currentHolding = portfolio.Holdings?.FirstOrDefault(h => 
+                h.Symbol.Equals(transactionModel.Symbol, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            currentHolding = null;
+        }
+    }
+
+    private async Task OnTransactionTypeChanged(string newType)
+    {
+        transactionModel.Type = newType;
+        await LoadCurrentHolding();
+        StateHasChanged();
+    }
+
+    private void UseCurrentPrice()
+    {
+        if (selectedStock != null)
+        {
+            transactionModel.Price = selectedStock.CurrentPrice;
+            CalculateTotals();
+        }
+    }
+
+    private void CalculateTotals()
+    {
+        // Trigger recalculation by updating component state
+        StateHasChanged();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        // Show confirmation modal first
+        showConfirmationModal = true;
+    }
+
+    private async Task ExecuteTransaction()
+    {
+        try
+        {
+            showConfirmationModal = false;
+            isSubmitting = true;
+            StateHasChanged();
+
+            // Additional validation for sell transactions
+            if (transactionModel.Type == "SELL" && currentHolding != null)
+            {
+                if (transactionModel.Quantity > currentHolding.Quantity)
+                {
+                    await JS.InvokeVoidAsync("showToast", 
+                        "Error", 
+                        $"Cannot sell {transactionModel.Quantity} shares. You only own {currentHolding.Quantity} shares.", 
+                        "error");
+                    return;
+                }
+            }
+
+            var createDto = new CreateTransactionDto
+            {
+                PortfolioId = PortfolioId,
+                Symbol = transactionModel.Symbol.Trim().ToUpperInvariant(),
+                Type = transactionModel.Type,
+                Quantity = transactionModel.Quantity,
+                Price = transactionModel.Price,
+                Fees = transactionModel.Fees,
+                Notes = transactionModel.Notes?.Trim() ?? "",
+                TransactionDate = transactionModel.TransactionDate
+            };
+
+            var result = await PortfolioService.CreateTransactionAsync(createDto);
+
+            if (result != null)
+            {
+                // Clear saved draft
+                await ClearDraft();
+
+                await JS.InvokeVoidAsync("showToast", 
+                    "Success", 
+                    $"Transaction recorded: {result.Type} {result.Quantity} shares of {result.Symbol} at {result.Price:C2}", 
+                    "success");
+
+                // Navigate back to portfolio details
+                Navigation.NavigateTo($"/portfolios/{PortfolioId}");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("showToast", 
+                    "Error", 
+                    "Failed to create transaction. Please try again.", 
+                    "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating transaction: {ex.Message}");
+            await JS.InvokeVoidAsync("showToast", 
+                "Error", 
+                "An error occurred while creating the transaction.", 
+                "error");
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleCancel()
+    {
+        Navigation.NavigateTo($"/portfolios/{PortfolioId}");
+    }
+
+    private void ClearForm()
+    {
+        transactionModel = new AddTransactionModel { Type = transactionModel.Type };
+        selectedStock = null;
+        currentHolding = null;
+        stockValidationError = null;
+        StateHasChanged();
+    }
+
+    private string GetFieldCssClass(string fieldName)
+    {
+        // This would typically integrate with validation state
+        // For now, we'll return empty string
+        return "";
+    }
+
+    // Auto-save draft functionality
+    private async Task SaveDraft()
+    {
+        try
+        {
+            var draft = new
+            {
+                portfolioId = PortfolioId,
+                type = transactionModel.Type,
+                symbol = transactionModel.Symbol,
+                quantity = transactionModel.Quantity,
+                price = transactionModel.Price,
+                fees = transactionModel.Fees,
+                notes = transactionModel.Notes,
+                transactionDate = transactionModel.TransactionDate,
+                timestamp = DateTime.UtcNow
+            };
+
+            await JS.InvokeVoidAsync("localStorage.setItem", 
+                $"transactionDraft_{PortfolioId}", 
+                System.Text.Json.JsonSerializer.Serialize(draft));
+
+            await JS.InvokeVoidAsync("showToast", 
+                "Success", 
+                "Draft saved successfully.", 
+                "success");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving draft: {ex.Message}");
+        }
+    }
+
+    private async Task LoadDraft()
+    {
+        try
+        {
+            var draftJson = await JS.InvokeAsync<string>("localStorage.getItem", $"transactionDraft_{PortfolioId}");
+            if (!string.IsNullOrEmpty(draftJson))
+            {
+                var draft = System.Text.Json.JsonSerializer.Deserialize<dynamic>(draftJson);
+                if (draft != null)
+                {
+                    // Parse and restore draft data
+                    // Implementation would depend on requirements
+                    await JS.InvokeVoidAsync("showToast", 
+                        "Info", 
+                        "Draft data found. You can continue where you left off.", 
+                        "info");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading draft: {ex.Message}");
+        }
+    }
+
+    private async Task ClearDraft()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.removeItem", $"transactionDraft_{PortfolioId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error clearing draft: {ex.Message}");
+        }
+    }
+
+    // Keyboard shortcuts for better UX
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                document.addEventListener('keydown', function(e) {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        e.preventDefault();
+                        const submitBtn = document.querySelector('button[type=""submit""]');
+                        if (submitBtn && !submitBtn.disabled) {
+                            submitBtn.click();
+                        }
+                    }
+                    if (e.key === 'Escape') {
+                        const cancelBtn = document.querySelector('.btn-outline-secondary');
+                        if (cancelBtn) {
+                            cancelBtn.click();
+                        }
+                    }
+                    if (e.ctrlKey && e.key === 's') {
+                        e.preventDefault();
+                        const saveDraftBtn = document.querySelector('.btn-outline-warning');
+                        if (saveDraftBtn) {
+                            saveDraftBtn.click();
+                        }
+                    }
+                });
+            ");
+        }
+    }
+}
+}

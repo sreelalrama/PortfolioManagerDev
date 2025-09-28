@@ -1,1 +1,449 @@
- 
+@page "/portfolios/{PortfolioId:int}/edit"
+@using StockTradePro.BlazorUI.Models.Portfolio
+@using StockTradePro.BlazorUI.Services
+@using System.ComponentModel.DataAnnotations
+@inject IPortfolioService PortfolioService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Portfolio - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading portfolio...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading portfolio details...</p>
+        </div>
+    }
+    else if (portfolio == null)
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h3>Portfolio Not Found</h3>
+                        <p class="text-muted mb-3">The portfolio you're trying to edit doesn't exist or you don't have access to it.</p>
+                        <a href="/portfolios" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Portfolios
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/portfolios">Portfolios</a></li>
+                        <li class="breadcrumb-item"><a href="/portfolios/@PortfolioId">@portfolio.Name</a></li>
+                        <li class="breadcrumb-item active">Edit</li>
+                    </ol>
+                </nav>
+                <h1 class="h2 mb-1">
+                    <i class="fas fa-edit me-2 text-primary"></i>Edit Portfolio
+                </h1>
+                <p class="text-muted mb-0">Update your portfolio settings and information</p>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-xl-6">
+                <div class="card">
+                    <div class="card-body p-4">
+                        <EditForm Model="@portfolioModel" OnValidSubmit="@HandleValidSubmit" FormName="EditPortfolioForm">
+                            <DataAnnotationsValidator />
+
+                            <!-- Portfolio Name -->
+                            <div class="mb-4">
+                                <label for="portfolioName" class="form-label">
+                                    Portfolio Name <span class="text-danger">*</span>
+                                </label>
+                                <InputText id="portfolioName"
+                                           class="form-control"
+                                           @bind-Value="portfolioModel.Name"
+                                           placeholder="e.g., Growth Portfolio, Retirement Fund"
+                                           autocomplete="off" />
+                                <ValidationMessage For="@(() => portfolioModel.Name)" class="text-danger small" />
+                            </div>
+
+                            <!-- Description -->
+                            <div class="mb-4">
+                                <label for="description" class="form-label">Description</label>
+                                <InputTextArea id="description"
+                                               class="form-control"
+                                               rows="3"
+                                               @bind-Value="portfolioModel.Description"
+                                               placeholder="Describe your investment strategy and goals..." />
+                                <ValidationMessage For="@(() => portfolioModel.Description)" class="text-danger small" />
+                                <div class="form-text">Optional: Add a description to help you remember your investment strategy</div>
+                            </div>
+
+                            <!-- Portfolio Type -->
+                            <div class="mb-4">
+                                <label for="portfolioType" class="form-label">
+                                    Portfolio Type <span class="text-danger">*</span>
+                                </label>
+                                <InputSelect id="portfolioType"
+                                             class="form-select"
+                                             @bind-Value="portfolioModel.Type">
+                                    <option value="">Select a type...</option>
+                                    <option value="Growth">Growth - Focus on capital appreciation</option>
+                                    <option value="Income">Income - Focus on dividends and income</option>
+                                    <option value="Balanced">Balanced - Mix of growth and income</option>
+                                    <option value="Conservative">Conservative - Low risk, stable returns</option>
+                                    <option value="Aggressive">Aggressive - High risk, high potential returns</option>
+                                    <option value="Retirement">Retirement - Long-term retirement planning</option>
+                                    <option value="Speculative">Speculative - High-risk investments</option>
+                                    <option value="Index">Index - Index fund tracking</option>
+                                    <option value="Sector">Sector - Specific industry focus</option>
+                                    <option value="Other">Other</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => portfolioModel.Type)" class="text-danger small" />
+                            </div>
+
+                            <!-- Portfolio Stats (Read-only) -->
+                            <div class="mb-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Portfolio Statistics</h6>
+                                        <div class="row">
+                                            <div class="col-md-6 mb-2">
+                                                <small class="text-muted">Current Value:</small>
+                                                <div class="fw-bold">@portfolio.CurrentValue.ToString("C2")</div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <small class="text-muted">Total Gain/Loss:</small>
+                                                <div class="fw-bold @(portfolio.TotalGainLoss >= 0 ? "text-success" : "text-danger")">
+                                                    @portfolio.TotalGainLoss.ToString("C2") (@portfolio.TotalGainLossPercent.ToString("F2")%)
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <small class="text-muted">Holdings:</small>
+                                                <div class="fw-bold">@portfolio.TotalHoldings</div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <small class="text-muted">Transactions:</small>
+                                                <div class="fw-bold">@portfolio.TotalTransactions</div>
+                                            </div>
+                                        </div>
+                                        <hr class="my-3">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Created:</small>
+                                                <div>@portfolio.CreatedAt.ToString("MMM dd, yyyy")</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Last Updated:</small>
+                                                <div>@portfolio.UpdatedAt.ToString("MMM dd, yyyy HH:mm")</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Privacy Settings -->
+                            <div class="mb-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Privacy Settings</h6>
+                                        <div class="form-check">
+                                            <InputCheckbox id="isPublic"
+                                                           class="form-check-input"
+                                                           @bind-Value="portfolioModel.IsPublic" />
+                                            <label class="form-check-label" for="isPublic">
+                                                Make this portfolio public
+                                            </label>
+                                        </div>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            @if (portfolioModel.IsPublic)
+                                            {
+                                                <span class="text-warning">
+                                                    <strong>Public:</strong> Other users can view this portfolio's performance and holdings.
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-success">
+                                                    <strong>Private:</strong> Only you can view this portfolio.
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Error Message -->
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger" role="alert">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    @errorMessage
+                                </div>
+                            }
+
+                            <!-- Success Message -->
+                            @if (!string.IsNullOrEmpty(successMessage))
+                            {
+                                <div class="alert alert-success" role="alert">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    @successMessage
+                                </div>
+                            }
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <button type="button" class="btn btn-outline-secondary me-2" @onclick="Cancel">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info" @onclick="ViewPortfolio">
+                                        <i class="fas fa-eye me-2"></i>View Portfolio
+                                    </button>
+                                </div>
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span>Updating...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-save me-2"></i>
+                                        <span>Save Changes</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="card mt-4 border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Danger Zone
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-danger mb-3">
+                            <strong>Delete Portfolio:</strong> This action cannot be undone.
+                            All transactions and holdings data will be permanently removed.
+                        </p>
+                        <button type="button" class="btn btn-outline-danger" @onclick="ShowDeleteConfirmation">
+                            <i class="fas fa-trash me-2"></i>Delete Portfolio
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-exclamation-triangle fa-3x text-danger"></i>
+                </div>
+                <h6 class="text-center mb-3">Are you absolutely sure?</h6>
+                <p class="text-center text-muted mb-3">
+                    This will permanently delete the portfolio <strong>"@portfolio?.Name"</strong>
+                    and all associated data including:
+                </p>
+                <ul class="text-muted">
+                    <li>All transactions (@portfolio?.TotalTransactions)</li>
+                    <li>All holdings (@portfolio?.TotalHoldings)</li>
+                    <li>Portfolio performance history</li>
+                </ul>
+                <div class="bg-light p-3 rounded mt-3">
+                    <small class="text-danger">
+                        <i class="fas fa-exclamation-circle me-1"></i>
+                        <strong>This action cannot be undone!</strong>
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
+                    @if (isDeleting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        <span>Deleting...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-trash me-2"></i>
+                        <span>Yes, Delete Portfolio</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int PortfolioId { get; set; }
+
+    public class ValidatedUpdatePortfolioDto
+    {
+        [Required(ErrorMessage = "Portfolio name is required")]
+        [StringLength(100, ErrorMessage = "Portfolio name cannot exceed 100 characters")]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
+        public string Description { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Portfolio type is required")]
+        public string Type { get; set; } = string.Empty;
+
+        public bool IsPublic { get; set; }
+    }
+
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool isDeleting = false;
+    private PortfolioDto? portfolio;
+    private ValidatedUpdatePortfolioDto portfolioModel = new();
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPortfolio();
+    }
+
+    private async Task LoadPortfolio()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            portfolio = await PortfolioService.GetPortfolioAsync(PortfolioId);
+            if (portfolio != null)
+            {
+                portfolioModel = new ValidatedUpdatePortfolioDto
+                {
+                    Name = portfolio.Name,
+                    Description = portfolio.Description,
+                    Type = portfolio.Type,
+                    IsPublic = portfolio.IsPublic
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading portfolio: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var updateDto = new UpdatePortfolioDto
+            {
+                Name = portfolioModel.Name.Trim(),
+                Description = portfolioModel.Description?.Trim() ?? string.Empty,
+                Type = portfolioModel.Type,
+                IsPublic = portfolioModel.IsPublic
+            };
+
+            var result = await PortfolioService.UpdatePortfolioAsync(PortfolioId, updateDto);
+            if (result != null)
+            {
+                portfolio = result;
+                successMessage = "Portfolio updated successfully!";
+
+                // Clear success message after 3 seconds
+                await Task.Delay(3000);
+                successMessage = string.Empty;
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "Failed to update portfolio. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An error occurred while updating the portfolio. Please try again.";
+            Console.WriteLine($"Error updating portfolio: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo($"/portfolios/{PortfolioId}");
+    }
+
+    private void ViewPortfolio()
+    {
+        Navigation.NavigateTo($"/portfolios/{PortfolioId}");
+    }
+
+    private async Task ShowDeleteConfirmation()
+    {
+        await InvokeAsync(async () =>
+        {
+            await Task.Delay(100); // Small delay to ensure modal shows
+            StateHasChanged();
+        });
+    }
+
+    private async Task ConfirmDelete()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            var success = await PortfolioService.DeletePortfolioAsync(PortfolioId);
+            if (success)
+            {
+                Navigation.NavigateTo("/portfolios");
+            }
+            else
+            {
+                errorMessage = "Failed to delete portfolio. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An error occurred while deleting the portfolio. Please try again.";
+            Console.WriteLine($"Error deleting portfolio: {ex.Message}");
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+}

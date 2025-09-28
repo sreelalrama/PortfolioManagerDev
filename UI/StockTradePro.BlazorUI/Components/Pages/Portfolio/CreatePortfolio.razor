@@ -1,1 +1,580 @@
- 
+@page "/portfolios/create"
+@using StockTradePro.BlazorUI.Models.Portfolio
+@using StockTradePro.BlazorUI.Components.Shared
+@using System.ComponentModel.DataAnnotations
+@inject IPortfolioService PortfolioService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Create Portfolio - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-2">
+                            <li class="breadcrumb-item">
+                                <a href="/portfolios" class="text-decoration-none">
+                                    <i class="fas fa-briefcase me-1"></i>Portfolios
+                                </a>
+                            </li>
+                            <li class="breadcrumb-item active" aria-current="page">Create Portfolio</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-plus-circle me-2 text-primary"></i>Create New Portfolio
+                    </h1>
+                    <p class="text-muted mb-0">Set up a new portfolio to track your investments</p>
+                </div>
+                <div>
+                    <a href="/portfolios" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Portfolios
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card create-portfolio-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Portfolio Details
+                    </h5>
+                    <small class="text-muted">All fields marked with * are required</small>
+                </div>
+
+                <div class="card-body">
+                    <EditForm Model="@portfolioModel" OnValidSubmit="@HandleValidSubmit" FormName="CreatePortfolioForm">
+                        <DataAnnotationsValidator />
+
+                        <!-- Portfolio Name -->
+                        <div class="form-group mb-4">
+                            <label for="portfolioName" class="form-label required">
+                                <i class="fas fa-tag me-1"></i>Portfolio Name
+                            </label>
+                            <InputText id="portfolioName"
+                                       class="form-control $"{@(GetFieldCssClass(nameof(portfolioModel.Name)))}""
+                                       @bind-Value="portfolioModel.Name"
+                                       placeholder="e.g., Growth Portfolio, Retirement Fund"
+                                       maxlength="100" />
+                            <ValidationMessage For="@(() => portfolioModel.Name)" class="validation-message" />
+                            <div class="form-text">
+                                Choose a descriptive name to easily identify this portfolio
+                            </div>
+                        </div>
+
+                        <!-- Portfolio Type -->
+                        <div class="form-group mb-4">
+                            <label for="portfolioType" class="form-label required">
+                                <i class="fas fa-layer-group me-1"></i>Portfolio Type
+                            </label>
+                            <InputSelect id="portfolioType"
+                                         class="form-select $"{@(GetFieldCssClass(nameof(portfolioModel.Type)))}""
+                                         @bind-Value="portfolioModel.Type">
+                                <option value="">Select portfolio type...</option>
+                                @foreach (var type in portfolioTypes)
+                                {
+                                    <option value="@type.Value">@type.Display (@type.Description)</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => portfolioModel.Type)" class="validation-message" />
+                            <div class="form-text">
+                                Portfolio type helps categorize your investment strategy
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-group mb-4">
+                            <label for="portfolioDescription" class="form-label">
+                                <i class="fas fa-align-left me-1"></i>Description
+                                <span class="text-muted">(Optional)</span>
+                            </label>
+                            <InputTextArea id="portfolioDescription"
+                                           class="form-control"
+                                           @bind-Value="portfolioModel.Description"
+                                           placeholder="Describe your investment goals and strategy for this portfolio..."
+                                           rows="3"
+                                           maxlength="500" />
+                            <ValidationMessage For="@(() => portfolioModel.Description)" class="validation-message" />
+                            <div class="form-text">
+                                <span class="character-count">@(portfolioModel.Description?.Length ?? 0)/500 characters</span>
+                            </div>
+                        </div>
+
+                        <!-- Initial Value -->
+                        <div class="form-group mb-4">
+                            <label for="initialValue" class="form-label">
+                                <i class="fas fa-dollar-sign me-1"></i>Initial Value
+                                <span class="text-muted">(Optional)</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <InputNumber id="initialValue"
+                                             class="form-control $"{@(GetFieldCssClass(nameof(portfolioModel.InitialValue)))}""
+                                             @bind-Value="portfolioModel.InitialValue"
+                                             placeholder="0.00"
+                                             step="0.01"
+                                             min="0" />
+                            </div>
+                            <ValidationMessage For="@(() => portfolioModel.InitialValue)" class="validation-message" />
+                            <div class="form-text">
+                                Set an initial cash value for this portfolio (you can add transactions later)
+                            </div>
+                        </div>
+
+                        <!-- Privacy Settings -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-shield-alt me-1"></i>Privacy Settings
+                            </label>
+                            <div class="privacy-options">
+                                <div class="form-check privacy-option">
+                                    <InputRadio id="portfolioPrivate"
+                                                name="privacy"
+                                                @bind-Value="portfolioModel.IsPublic"
+                                                class="form-check-input" />
+                                    <label class="form-check-label" for="portfolioPrivate">
+                                        <div class="privacy-option-content">
+                                            <div class="privacy-title">
+                                                <i class="fas fa-lock me-2 text-secondary"></i>
+                                                <strong>Private</strong>
+                                                <span class="badge bg-secondary ms-2">Recommended</span>
+                                            </div>
+                                            <small class="text-muted">Only you can view this portfolio</small>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="form-check privacy-option">
+                                    <InputRadio id="portfolioPublic"
+                                                name="privacy"
+                                                @bind-Value="portfolioModel.IsPublic"
+                                                class="form-check-input" />
+                                    <label class="form-check-label" for="portfolioPublic">
+                                        <div class="privacy-option-content">
+                                            <div class="privacy-title">
+                                                <i class="fas fa-globe me-2 text-info"></i>
+                                                <strong>Public</strong>
+                                            </div>
+                                            <small class="text-muted">Others can view your portfolio performance (no personal details)</small>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-actions">
+                            <div class="d-flex gap-3">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary flex-fill"
+                                        @onclick="HandleCancel"
+                                        disabled="@isSubmitting">
+                                    <i class="fas fa-times me-1"></i>Cancel
+                                </button>
+                                
+                                <button type="submit" 
+                                        class="btn btn-primary flex-fill"
+                                        disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <LoadingSpinner IsInline="true" 
+                                                      Size="LoadingSpinner.LoadingSize.Small" 
+                                                      ShowMessage="false" />
+                                        <span class="ms-2">Creating Portfolio...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-plus me-1"></i>
+                                        <span>Create Portfolio</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+
+                <!-- Tips Card -->
+                <div class="card-footer bg-light">
+                    <div class="tips-section">
+                        <h6 class="mb-2">
+                            <i class="fas fa-lightbulb me-1 text-warning"></i>Tips for Creating Your Portfolio
+                        </h6>
+                        <ul class="tips-list">
+                            <li><strong>Choose a clear name:</strong> Use descriptive names like "Retirement 401k" or "Growth Stocks"</li>
+                            <li><strong>Select the right type:</strong> This helps organize and track different investment strategies</li>
+                            <li><strong>Privacy matters:</strong> Keep personal portfolios private, share educational ones publicly</li>
+                            <li><strong>Start simple:</strong> You can always add transactions and modify details later</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<LoadingSpinner IsVisible="@isSubmitting" 
+                IsOverlay="true" 
+                Type="LoadingSpinner.LoadingType.Custom"
+                Message="Creating your portfolio..." />
+
+<style>
+    .create-portfolio-card {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-radius: 12px;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px 12px 0 0;
+        padding: 1.5rem;
+    }
+
+    .required::after {
+        content: " *";
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    .form-group {
+        position: relative;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control,
+    .form-select {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    .form-control.is-valid {
+        border-color: #28a745;
+    }
+
+    .form-control.is-invalid {
+        border-color: #dc3545;
+    }
+
+    .validation-message {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .form-text {
+        color: #6c757d;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    .character-count {
+        float: right;
+        font-size: 0.8rem;
+        color: #adb5bd;
+    }
+
+    .privacy-options {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 2px solid #e9ecef;
+    }
+
+    .privacy-option {
+        margin-bottom: 0.75rem;
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        background: white;
+        transition: all 0.2s ease;
+    }
+
+    .privacy-option:last-child {
+        margin-bottom: 0;
+    }
+
+    .privacy-option:hover {
+        border-color: #667eea;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+    }
+
+    .privacy-option:has(.form-check-input:checked) {
+        border-color: #667eea;
+        background: #f8f9ff;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+    }
+
+    .privacy-option-content {
+        margin-left: 0.5rem;
+    }
+
+    .privacy-title {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.25rem;
+    }
+
+    .form-actions {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .tips-section {
+        padding: 0.5rem 0;
+    }
+
+    .tips-list {
+        margin: 0;
+        padding-left: 1.25rem;
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .tips-list li {
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .tips-list li:last-child {
+        margin-bottom: 0;
+    }
+
+    .breadcrumb {
+        background: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/";
+        color: #6c757d;
+    }
+
+    .breadcrumb-item a {
+        color: #667eea;
+    }
+
+    .breadcrumb-item.active {
+        color: #6c757d;
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 768px) {
+        .create-portfolio-card {
+            margin: 0 -15px;
+            border-radius: 0;
+        }
+
+        .card-header {
+            border-radius: 0;
+        }
+
+        .form-actions .d-flex {
+            flex-direction: column;
+        }
+
+        .form-actions .btn {
+            margin-bottom: 0.5rem;
+        }
+    }
+
+    /* Animation for form validation */
+    .validation-message {
+        animation: slideInUp 0.3s ease-out;
+    }
+
+    @@keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+@code {
+    private CreatePortfolioModel portfolioModel = new();
+    private bool isSubmitting = false;
+    private readonly List<PortfolioTypeOption> portfolioTypes = new()
+    {
+        new("Growth", "Growth Portfolio", "Focus on capital appreciation and long-term growth"),
+        new("Income", "Income Portfolio", "Focus on dividend income and regular distributions"), 
+        new("Balanced", "Balanced Portfolio", "Mix of growth and income investments"),
+        new("Conservative", "Conservative Portfolio", "Low-risk, capital preservation focused"),
+        new("Aggressive", "Aggressive Portfolio", "High-risk, high-reward investment strategy"),
+        new("Retirement", "Retirement Portfolio", "Long-term retirement planning and savings"),
+        new("Speculation", "Speculative Portfolio", "High-risk speculative investments"),
+        new("Index", "Index Portfolio", "Passive index fund and ETF investments"),
+        new("Sector", "Sector Portfolio", "Focused on specific market sectors"),
+        new("International", "International Portfolio", "Global and international investments"),
+        new("ESG", "ESG Portfolio", "Environmental, social, and governance focused"),
+        new("Custom", "Custom Portfolio", "Custom investment strategy")
+    };
+
+    public class CreatePortfolioModel
+    {
+        [Required(ErrorMessage = "Portfolio name is required")]
+        [StringLength(100, ErrorMessage = "Portfolio name cannot exceed 100 characters")]
+        [MinLength(2, ErrorMessage = "Portfolio name must be at least 2 characters")]
+        public string Name { get; set; } = "";
+
+        [Required(ErrorMessage = "Portfolio type is required")]
+        public string Type { get; set; } = "";
+
+        [StringLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
+        public string? Description { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Initial value must be positive")]
+        public double InitialValue { get; set; } = 0;
+
+        public bool IsPublic { get; set; } = false;
+    }
+
+    public record PortfolioTypeOption(string Value, string Display, string Description);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Pre-select a default portfolio type
+        portfolioModel.Type = "Growth";
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+            StateHasChanged();
+
+            var createDto = new CreatePortfolioDto
+            {
+                Name = portfolioModel.Name.Trim(),
+                Description = portfolioModel.Description?.Trim() ?? "",
+                Type = portfolioModel.Type,
+                InitialValue = portfolioModel.InitialValue,
+                IsPublic = portfolioModel.IsPublic
+            };
+
+            var result = await PortfolioService.CreatePortfolioAsync(createDto);
+
+            if (result != null)
+            {
+                // Show success toast
+                await JS.InvokeVoidAsync("showToast", 
+                    "Success", 
+                    $"Portfolio '{result.Name}' created successfully!", 
+                    "success");
+
+                // Navigate to the new portfolio or portfolio list
+                Navigation.NavigateTo($"/portfolios/{result.Id}");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("showToast", 
+                    "Error", 
+                    "Failed to create portfolio. Please try again.", 
+                    "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating portfolio: {ex.Message}");
+            await JS.InvokeVoidAsync("showToast", 
+                "Error", 
+                "An error occurred while creating the portfolio.", 
+                "error");
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleCancel()
+    {
+        Navigation.NavigateTo("/portfolios");
+    }
+
+    private string GetFieldCssClass(string fieldName)
+    {
+        // This would typically integrate with validation state
+        // For now, we'll return empty string
+        return "";
+    }
+
+    // Auto-save draft functionality (optional enhancement)
+    private async Task SaveDraft()
+    {
+        try
+        {
+            var draft = new
+            {
+                name = portfolioModel.Name,
+                type = portfolioModel.Type,
+                description = portfolioModel.Description,
+                initialValue = portfolioModel.InitialValue,
+                isPublic = portfolioModel.IsPublic,
+                timestamp = DateTime.UtcNow
+            };
+
+            await JS.InvokeVoidAsync("localStorage.setItem", 
+                "createPortfolioDraft", 
+                System.Text.Json.JsonSerializer.Serialize(draft));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving draft: {ex.Message}");
+        }
+    }
+
+    // Load draft on initialization (optional enhancement)
+    private async Task LoadDraft()
+    {
+        try
+        {
+            var draftJson = await JS.InvokeAsync<string>("localStorage.getItem", "createPortfolioDraft");
+            if (!string.IsNullOrEmpty(draftJson))
+            {
+                // Parse and restore draft data
+                // Implementation would depend on requirements
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading draft: {ex.Message}");
+        }
+    }
+       
+   
+    
+   
+}
+    
+}
+}

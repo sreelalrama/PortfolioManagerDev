@@ -1,1 +1,325 @@
- 
+@namespace StockTradePro.BlazorUI.Components.Shared
+@using StockTradePro.BlazorUI.Models.Portfolio
+
+<div class="card portfolio-card h-100 @(IsSelected ? "selected" : "")" @onclick="HandleCardClick">
+    <div class="card-body d-flex flex-column">
+        <!-- Portfolio Header -->
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="portfolio-info">
+                <h6 class="portfolio-name mb-1 fw-bold">@Portfolio.Name</h6>
+                <small class="portfolio-type text-muted">@Portfolio.Type</small>
+            </div>
+            @if (ShowActions)
+            {
+                <div class="dropdown" @onclick:stopPropagation="true">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <button class="dropdown-item" @onclick="() => OnEdit.InvokeAsync(Portfolio)">
+                                <i class="fas fa-edit me-2"></i>Edit
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item" @onclick="() => OnViewDetails.InvokeAsync(Portfolio)">
+                                <i class="fas fa-eye me-2"></i>View Details
+                            </button>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <button class="dropdown-item text-danger" @onclick="() => OnDelete.InvokeAsync(Portfolio)">
+                                <i class="fas fa-trash me-2"></i>Delete
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            }
+        </div>
+
+        <!-- Portfolio Metrics -->
+        <div class="portfolio-metrics flex-grow-1">
+            <!-- Current Value -->
+            <div class="metric-row d-flex justify-content-between align-items-center mb-2">
+                <span class="metric-label text-muted small">Current Value</span>
+                <span class="metric-value fw-bold">@Portfolio.CurrentValue.ToString("C0")</span>
+            </div>
+
+            <!-- Gain/Loss -->
+            <div class="metric-row d-flex justify-content-between align-items-center mb-2">
+                <span class="metric-label text-muted small">Total Gain/Loss</span>
+                <div class="d-flex flex-column align-items-end">
+                    <span class="metric-value fw-bold @GetGainLossClass()">
+                        @Portfolio.TotalGainLoss.ToString("C2")
+                    </span>
+                    <small class="@GetGainLossClass()">
+                        (@Portfolio.TotalGainLossPercent.ToString("F2")%)
+                    </small>
+                </div>
+            </div>
+
+            <!-- Holdings Count -->
+            <div class="metric-row d-flex justify-content-between align-items-center mb-2">
+                <span class="metric-label text-muted small">Holdings</span>
+                <span class="metric-value">@Portfolio.TotalHoldings</span>
+            </div>
+
+            <!-- Last Updated -->
+            <div class="metric-row d-flex justify-content-between align-items-center">
+                <span class="metric-label text-muted small">Last Updated</span>
+                <span class="metric-value small">@GetLastUpdatedText()</span>
+            </div>
+        </div>
+
+        <!-- Performance Bar (Visual Indicator) -->
+        @if (ShowPerformanceBar)
+        {
+            <div class="performance-bar mt-3">
+                <div class="progress" style="height: 4px;">
+                    <div class="progress-bar @GetPerformanceBarClass()"
+                         role="progressbar"
+                         style="width: @GetPerformanceBarWidth()%"
+                         aria-valuenow="@Math.Abs(Portfolio.TotalGainLossPercent)"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <small class="text-muted">Performance</small>
+                    <small class="@GetGainLossClass() fw-bold">
+                        @(Portfolio.TotalGainLossPercent >= 0 ? "+" : "")@Portfolio.TotalGainLossPercent.ToString("F1")%
+                    </small>
+                </div>
+            </div>
+        }
+
+        <!-- Footer Actions -->
+        @if (ShowQuickActions)
+        {
+            <div class="card-footer-actions mt-3 pt-3 border-top">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm flex-fill"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => OnViewDetails.InvokeAsync(Portfolio)">
+                        <i class="fas fa-eye me-1"></i>View
+                    </button>
+                    <button class="btn btn-outline-success btn-sm flex-fill"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => OnAddTransaction.InvokeAsync(Portfolio)">
+                        <i class="fas fa-plus me-1"></i>Trade
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Selection Indicator -->
+    @if (IsSelectable && IsSelected)
+    {
+        <div class="selection-indicator">
+            <i class="fas fa-check-circle"></i>
+        </div>
+    }
+</div>
+
+<style>
+    .portfolio-card {
+        transition: all 0.3s ease;
+        border: 1px solid #e9ecef;
+        cursor: @(IsClickable ? "pointer" : "default");
+        position: relative;
+        overflow: hidden;
+    }
+
+        .portfolio-card:hover {
+            transform: @(IsClickable ? "translateY(-2px)" : "none");
+            box-shadow: @(IsClickable ? "0 4px 12px rgba(0,0,0,0.15)" : "0 2px 4px rgba(0,0,0,0.1)");
+            border-color: #007bff;
+        }
+
+        .portfolio-card.selected {
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+
+    .portfolio-name {
+        color: #495057;
+        font-size: 1rem;
+        line-height: 1.2;
+    }
+
+    .portfolio-type {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .metric-row {
+        min-height: 1.5rem;
+    }
+
+    .metric-label {
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .metric-value {
+        font-size: 0.9rem;
+    }
+
+    .text-gain {
+        color: #28a745 !important;
+    }
+
+    .text-loss {
+        color: #dc3545 !important;
+    }
+
+    .text-neutral {
+        color: #6c757d !important;
+    }
+
+    .performance-bar .progress {
+        background-color: #e9ecef;
+        border-radius: 2px;
+    }
+
+    .bg-gain {
+        background-color: #28a745 !important;
+    }
+
+    .bg-loss {
+        background-color: #dc3545 !important;
+    }
+
+    .bg-neutral {
+        background-color: #6c757d !important;
+    }
+
+    .card-footer-actions {
+        margin: 0 -1rem -1rem -1rem;
+        padding: 1rem 1rem 0.75rem 1rem;
+        background-color: #f8f9fa;
+    }
+
+    .selection-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: #007bff;
+        font-size: 1.2rem;
+        z-index: 10;
+    }
+
+    .dropdown-toggle::after {
+        display: none;
+    }
+
+    .dropdown-menu {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: 8px;
+        min-width: 160px;
+    }
+
+    .dropdown-item {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+    }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+    /* Responsive adjustments */
+    @@media (max-width: 576px) {
+        .portfolio-card .card-body
+
+    {
+        padding: 1rem 0.75rem;
+    }
+
+    .portfolio-name {
+        font-size: 0.9rem;
+    }
+
+    .metric-label,
+    .metric-value {
+        font-size: 0.75rem;
+    }
+
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired] public PortfolioSummaryDto Portfolio { get; set; } = null!;
+
+    // Display Options
+    [Parameter] public bool ShowActions { get; set; } = true;
+    [Parameter] public bool ShowQuickActions { get; set; } = false;
+    [Parameter] public bool ShowPerformanceBar { get; set; } = true;
+    [Parameter] public bool IsClickable { get; set; } = true;
+    [Parameter] public bool IsSelectable { get; set; } = false;
+    [Parameter] public bool IsSelected { get; set; } = false;
+
+    // Event Callbacks
+    [Parameter] public EventCallback<PortfolioSummaryDto> OnClick { get; set; }
+    [Parameter] public EventCallback<PortfolioSummaryDto> OnEdit { get; set; }
+    [Parameter] public EventCallback<PortfolioSummaryDto> OnDelete { get; set; }
+    [Parameter] public EventCallback<PortfolioSummaryDto> OnViewDetails { get; set; }
+    [Parameter] public EventCallback<PortfolioSummaryDto> OnAddTransaction { get; set; }
+
+    private async Task HandleCardClick()
+    {
+        if (IsClickable && OnClick.HasDelegate)
+        {
+            await OnClick.InvokeAsync(Portfolio);
+        }
+    }
+
+    private string GetGainLossClass()
+    {
+        if (Portfolio.TotalGainLoss > 0) return "text-gain";
+        if (Portfolio.TotalGainLoss < 0) return "text-loss";
+        return "text-neutral";
+    }
+
+    private string GetPerformanceBarClass()
+    {
+        if (Portfolio.TotalGainLossPercent > 0) return "bg-gain";
+        if (Portfolio.TotalGainLossPercent < 0) return "bg-loss";
+        return "bg-neutral";
+    }
+
+    private double GetPerformanceBarWidth()
+    {
+        // Normalize the percentage to a 0-100 scale for the progress bar
+        // Cap at 50% for extreme values to keep the bar readable
+        var absPercent = Math.Abs(Portfolio.TotalGainLossPercent);
+        return Math.Min(absPercent * 2, 100); // Scale up small percentages, cap large ones
+    }
+
+    private string GetLastUpdatedText()
+    {
+        var timeSpan = DateTime.UtcNow - Portfolio.LastCalculatedAt;
+
+        if (timeSpan.TotalMinutes < 1)
+            return "Just now";
+        else if (timeSpan.TotalMinutes < 60)
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        else if (timeSpan.TotalHours < 24)
+            return $"{(int)timeSpan.TotalHours}h ago";
+        else if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays}d ago";
+        else
+            return Portfolio.LastCalculatedAt.ToString("MMM dd");
+    }
+}
