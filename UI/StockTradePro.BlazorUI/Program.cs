@@ -11,26 +11,52 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
-// Single HTTP Client pointing to API Gateway
-builder.Services.AddHttpClient("ApiGateway", client =>
+// Configure Gateway URL
+var gatewayUrl = builder.Configuration["ApiGatewayUrl"] ?? ServiceConstants.ApiGatewayUrl;
+
+// Register Configured Typed Clients or Mocks
+var useMockServices = builder.Configuration.GetValue<bool>("UseMockServices");
+
+if (useMockServices)
 {
-    client.BaseAddress = new Uri(ServiceConstants.ApiGatewayUrl);
-    client.Timeout = TimeSpan.FromSeconds(30);
-});
+    builder.Services.AddScoped<IAuthService, MockAuthService>();
+    builder.Services.AddScoped<IStockDataService, MockStockDataService>();
+    builder.Services.AddScoped<IPortfolioService, MockPortfolioService>();
+    builder.Services.AddScoped<IWatchlistService, MockWatchlistService>();
+    builder.Services.AddScoped<INotificationService, MockNotificationService>();
+}
+else
+{
+    builder.Services.AddHttpClient<IAuthService, AuthService>(client =>
+    {
+        client.BaseAddress = new Uri(gatewayUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
 
-//mock services are in use
-builder.Services.AddScoped<IAuthService, MockAuthService>();
-builder.Services.AddScoped<IStockDataService, MockStockDataService>();
-builder.Services.AddScoped<IPortfolioService, MockPortfolioService>();
-builder.Services.AddScoped<IWatchlistService, MockWatchlistService>();
-builder.Services.AddScoped<INotificationService, MockNotificationService>();
+    builder.Services.AddHttpClient<IStockDataService, StockDataService>(client =>
+    {
+        client.BaseAddress = new Uri(gatewayUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
 
-// Register services - they'll all use the same gateway client
-//builder.Services.AddScoped<IAuthService, AuthService>();
-//builder.Services.AddScoped<IStockDataService, StockDataService>();
-//builder.Services.AddScoped<IPortfolioService, PortfolioService>();
-//builder.Services.AddScoped<IWatchlistService, WatchlistService>();
-//builder.Services.AddScoped<INotificationService, NotificationService>();
+    builder.Services.AddHttpClient<IPortfolioService, PortfolioService>(client =>
+    {
+        client.BaseAddress = new Uri(gatewayUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+
+    builder.Services.AddHttpClient<IWatchlistService, WatchlistService>(client =>
+    {
+        client.BaseAddress = new Uri(gatewayUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+
+    builder.Services.AddHttpClient<INotificationService, NotificationService>(client =>
+    {
+        client.BaseAddress = new Uri(gatewayUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+}
 
 // SignalR
 builder.Services.AddSignalR(options =>
