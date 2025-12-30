@@ -3,11 +3,11 @@
     public static class ServiceConstants
     {
         // API Gateway URL - Single entry point for all services
-        public const string ApiGatewayUrl = "http://localhost:5262";
+        public const string ApiGatewayUrl = "http://localhost:5100";
 
         // SignalR Hub URLs - These typically bypass the gateway for direct connections
-        public const string StockPriceHubUrl = "http://localhost:5200/stockPriceHub";
-        public const string NotificationHubUrl = "http://localhost:5186/notificationHub";
+        public const string StockPriceHubUrl = "http://localhost:5100/stockPriceHub";
+        public const string NotificationHubUrl = "http://localhost:5100/notificationHub";
 
         // API Endpoints - These will be routed through the gateway
         public static class ApiEndpoints

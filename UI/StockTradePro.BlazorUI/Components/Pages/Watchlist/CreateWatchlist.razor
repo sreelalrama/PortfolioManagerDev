@@ -1,1 +1,431 @@
- 
+@page "/watchlists/create"
+@using StockTradePro.BlazorUI.Models.Watchlist
+@using StockTradePro.BlazorUI.Services
+@using StockTradePro.BlazorUI.Components.Shared
+@inject IWatchlistService WatchlistService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Create Watchlist - StockTradePro</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-plus-circle me-2 text-primary"></i>Create New Watchlist
+                    </h1>
+                    <p class="text-muted mb-0">Create a custom watchlist to track your favorite stocks</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="GoBack">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Watchlists
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list-alt me-2"></i>Watchlist Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-4">
+                            <LoadingSpinner IsVisible="true"
+                                            Type="LoadingSpinner.LoadingType.Spinner"
+                                            Size="LoadingSpinner.LoadingSize.Medium"
+                                            Message="Creating watchlist..." />
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="createModel" OnValidSubmit="HandleValidSubmit">
+                            <DataAnnotationsValidator />
+
+                            <!-- Name Field -->
+                            <div class="mb-3">
+                                <label for="watchlistName" class="form-label fw-semibold">
+                                    <i class="fas fa-tag me-1 text-primary"></i>Watchlist Name *
+                                </label>
+                                <InputText id="watchlistName"
+                                           class="form-control"
+                                           @bind-Value="createModel.Name"
+                                           placeholder="Enter a descriptive name for your watchlist"
+                                           maxlength="100" />
+                                <ValidationMessage For="@(() => createModel.Name)" class="text-danger small" />
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Choose a name that helps you identify the purpose of this watchlist
+                                </div>
+                            </div>
+
+                            <!-- Description Field -->
+                            <div class="mb-3">
+                                <label for="watchlistDescription" class="form-label fw-semibold">
+                                    <i class="fas fa-align-left me-1 text-primary"></i>Description
+                                </label>
+                                <InputTextArea id="watchlistDescription"
+                                               class="form-control"
+                                               @bind-Value="createModel.Description"
+                                               placeholder="Optional description of what stocks you plan to track..."
+                                               rows="3"
+                                               maxlength="500" />
+                                <ValidationMessage For="@(() => createModel.Description)" class="text-danger small" />
+                                <div class="form-text">
+                                    Characters remaining: @(500 - (createModel.Description?.Length ?? 0))
+                                </div>
+                            </div>
+
+                            <!-- Default Watchlist Option -->
+                            <div class="mb-4">
+                                <div class="form-check">
+                                    <InputCheckbox id="isDefault" class="form-check-input" @bind-Value="createModel.IsDefault" />
+                                    <label class="form-check-label fw-semibold" for="isDefault">
+                                        <i class="fas fa-star me-1 text-warning"></i>Make this my default watchlist
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Your default watchlist will be displayed first and highlighted in the watchlist list
+                                </div>
+                            </div>
+
+                            <!-- Information Panel -->
+                            <div class="alert alert-info border-0 mb-4">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-lightbulb fa-lg text-info"></i>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="alert-heading mb-2">Getting Started Tips</h6>
+                                        <ul class="mb-0 small">
+                                            <li>After creating your watchlist, you can add stocks by searching for their symbols</li>
+                                            <li>Set up price alerts to get notified when stocks hit your target prices</li>
+                                            <li>Organize your stocks by dragging them to reorder within the watchlist</li>
+                                            <li>You can create multiple watchlists for different investment strategies</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button type="button"
+                                        class="btn btn-outline-secondary"
+                                        @onclick="GoBack"
+                                        disabled="@isProcessing">
+                                    <i class="fas fa-times me-1"></i>Cancel
+                                </button>
+                                <button type="submit"
+                                        class="btn btn-primary"
+                                        disabled="@(isProcessing || !IsFormValid())">
+                                    @if (isProcessing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span>Creating...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-plus me-1"></i>
+                                        <span>Create Watchlist</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+
+            <!-- Quick Start Guide -->
+            @if (!isLoading && !isProcessing)
+            {
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-rocket me-2 text-success"></i>What's Next?
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start mb-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="badge bg-primary rounded-pill">1</div>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">Add Stocks</h6>
+                                        <p class="small text-muted mb-0">Search and add stocks to your watchlist using their ticker symbols</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start mb-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="badge bg-primary rounded-pill">2</div>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">Set Price Alerts</h6>
+                                        <p class="small text-muted mb-0">Get notified when stocks reach your target buy or sell prices</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start mb-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="badge bg-primary rounded-pill">3</div>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">Track Performance</h6>
+                                        <p class="small text-muted mb-0">Monitor price changes and trends for all your watched stocks</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start mb-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="badge bg-primary rounded-pill">4</div>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">Make Decisions</h6>
+                                        <p class="small text-muted mb-0">Use the insights to make informed investment decisions</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Success Toast (will be shown via JS) -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="fas fa-check-circle text-success me-2"></i>
+            <strong class="me-auto">Success</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            Watchlist created successfully!
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 12px;
+    }
+
+    .card-header {
+        border-radius: 12px 12px 0 0 !important;
+        border: none;
+    }
+
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .form-check-input:checked {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    .alert {
+        border-radius: 8px;
+    }
+
+    .badge {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+    }
+
+    .btn {
+        border-radius: 6px;
+        font-weight: 500;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+    }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+            transform: translateY(-1px);
+        }
+
+    .btn-outline-secondary:hover {
+        transform: translateY(-1px);
+    }
+
+    .card:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* Animation for form appearance */
+    .card-body {
+        animation: slideInUp 0.3s ease-out;
+    }
+
+    @@keyframes slideInUp {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 768px) {
+        .container-fluid
+
+    {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .d-flex.gap-2.justify-content-end {
+        flex-direction: column-reverse;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    }
+</style>
+
+@code {
+    private CreateWatchlistDto createModel = new();
+    private bool isLoading = false;
+    private bool isProcessing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialize with default values
+        createModel = new CreateWatchlistDto
+        {
+            Name = "",
+            Description = "",
+            IsDefault = false
+        };
+
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            StateHasChanged();
+
+            var result = await WatchlistService.CreateWatchlistAsync(createModel);
+
+            if (result != null)
+            {
+                // Show success message
+                await ShowSuccessToast();
+
+                // Small delay to show the toast
+                await Task.Delay(1000);
+
+                // Navigate to the watchlists page or the new watchlist
+                Navigation.NavigateTo("/watchlists");
+            }
+            else
+            {
+                await ShowErrorToast("Failed to create watchlist. Please try again.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating watchlist: {ex.Message}");
+            await ShowErrorToast("An error occurred while creating the watchlist.");
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool IsFormValid()
+    {
+        return !string.IsNullOrWhiteSpace(createModel.Name) &&
+               createModel.Name.Length <= 100 &&
+               (string.IsNullOrEmpty(createModel.Description) || createModel.Description.Length <= 500);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/watchlists");
+    }
+
+    private async Task ShowSuccessToast()
+    {
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            const toast = new bootstrap.Toast(document.getElementById('successToast'));
+            toast.show();
+        ");
+    }
+
+    private async Task ShowErrorToast(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("eval", $@"
+            // Create error toast dynamically
+            const toastContainer = document.querySelector('.toast-container');
+            const errorToast = document.createElement('div');
+            errorToast.className = 'toast';
+            errorToast.setAttribute('role', 'alert');
+            errorToast.innerHTML = `
+                <div class='toast-header'>
+                    <i class='fas fa-exclamation-circle text-danger me-2'></i>
+                    <strong class='me-auto'>Error</strong>
+                    <button type='button' class='btn-close' data-bs-dismiss='toast'></button>
+                </div>
+                <div class='toast-body'>{message}</div>
+            `;
+            toastContainer.appendChild(errorToast);
+            const toast = new bootstrap.Toast(errorToast);
+            toast.show();
+
+            // Remove after hiding
+            errorToast.addEventListener('hidden.bs.toast', () => {{
+                errorToast.remove();
+            }});
+        ");
+    }
+}

@@ -1,6 +1,9 @@
 @using StockTradePro.BlazorUI.Models.Auth
 @using System.ComponentModel.DataAnnotations
+@using StockTradePro.BlazorUI.Services
 @inject IJSRuntime JS
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
 
 <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -406,13 +409,17 @@
 
     private async Task AuthenticateUser(UserLoginDto loginDto)
     {
-        // Simulate a successful API call after a delay
-        await Task.Delay(1500);
-
-        // Simulated authentication logic
-        if (loginDto.Email != "demo@example.com" || loginDto.Password != "password123")
+        var response = await AuthService.LoginAsync(loginDto);
+        
+        if (response != null && !string.IsNullOrEmpty(response.Token))
         {
-            throw new Exception("Invalid credentials");
+            // Set the token in the service so it's used for subsequent requests
+            AuthService.SetToken(response.Token);
+            Console.WriteLine("Login successful, token stored.");
+        }
+        else
+        {
+            throw new Exception("Invalid email or password.");
         }
     }
     public async Task ShowAsync()

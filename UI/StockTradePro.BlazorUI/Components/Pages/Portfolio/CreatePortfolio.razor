@@ -132,39 +132,39 @@
                             <label class="form-label">
                                 <i class="fas fa-shield-alt me-1"></i>Privacy Settings
                             </label>
-                            <div class="privacy-options">
-                                <div class="form-check privacy-option">
-                                    <InputRadio id="portfolioPrivate"
-                                                name="privacy"
-                                                @bind-Value="portfolioModel.IsPublic"
-                                                class="form-check-input" />
-                                    <label class="form-check-label" for="portfolioPrivate">
-                                        <div class="privacy-option-content">
-                                            <div class="privacy-title">
-                                                <i class="fas fa-lock me-2 text-secondary"></i>
-                                                <strong>Private</strong>
-                                                <span class="badge bg-secondary ms-2">Recommended</span>
+                            <InputRadioGroup @bind-Value="portfolioModel.IsPublic" Name="privacy">
+                                <div class="privacy-options">
+                                    <div class="form-check privacy-option">
+                                        <InputRadio id="portfolioPrivate"
+                                                    Value="@false"
+                                                    class="form-check-input" />
+                                        <label class="form-check-label" for="portfolioPrivate">
+                                            <div class="privacy-option-content">
+                                                <div class="privacy-title">
+                                                    <i class="fas fa-lock me-2 text-secondary"></i>
+                                                    <strong>Private</strong>
+                                                    <span class="badge bg-secondary ms-2">Recommended</span>
+                                                </div>
+                                                <small class="text-muted">Only you can view this portfolio</small>
                                             </div>
-                                            <small class="text-muted">Only you can view this portfolio</small>
-                                        </div>
-                                    </label>
-                                </div>
-                                <div class="form-check privacy-option">
-                                    <InputRadio id="portfolioPublic"
-                                                name="privacy"
-                                                @bind-Value="portfolioModel.IsPublic"
-                                                class="form-check-input" />
-                                    <label class="form-check-label" for="portfolioPublic">
-                                        <div class="privacy-option-content">
-                                            <div class="privacy-title">
-                                                <i class="fas fa-globe me-2 text-info"></i>
-                                                <strong>Public</strong>
+                                        </label>
+                                    </div>
+                                    <div class="form-check privacy-option">
+                                        <InputRadio id="portfolioPublic"
+                                                    Value="@true"
+                                                    class="form-check-input" />
+                                        <label class="form-check-label" for="portfolioPublic">
+                                            <div class="privacy-option-content">
+                                                <div class="privacy-title">
+                                                    <i class="fas fa-globe me-2 text-info"></i>
+                                                    <strong>Public</strong>
+                                                </div>
+                                                <small class="text-muted">Others can view your portfolio performance (no personal details)</small>
                                             </div>
-                                            <small class="text-muted">Others can view your portfolio performance (no personal details)</small>
-                                        </div>
-                                    </label>
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
+                            </InputRadioGroup>
                         </div>
 
                         <!-- Action Buttons -->
