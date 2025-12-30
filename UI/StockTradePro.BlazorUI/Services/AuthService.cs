@@ -217,21 +217,34 @@ namespace StockTradePro.BlazorUI.Services
             return true; // Stubbed for testing
         }
 
+        private string? _token;
+
         public async Task<string?> GetCurrentUserIdAsync()
         {
-            await Task.CompletedTask;
-            return "test-user-id"; // Stubbed for testing
+            if (string.IsNullOrEmpty(_token)) return null;
+
+            try
+            {
+                var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(_token);
+                var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "nameid" || c.Type == "sub");
+                return userIdClaim?.Value;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error parsing token to get User ID");
+                return null;
+            }
         }
 
         public async Task<string?> GetTokenAsync()
         {
-            await Task.CompletedTask;
-            return "test-token"; // Stubbed for testing
+            return _token;
         }
 
         public void SetToken(string token)
         {
-            // In real implementation, store in secure storage
+            _token = token;
             _httpClient.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue(ServiceConstants.Auth.BearerScheme, token);
         }
