@@ -29,6 +29,7 @@ namespace StockTradePro.BlazorUI.Services.Mocks
         {
             return new Dictionary<string, StockPriceDto>
             {
+                // Tech
                 { "AAPL", new StockPriceDto { Symbol = "AAPL", Price = 175.25, Change = 2.45, ChangePercent = 1.42, LastUpdated = DateTime.UtcNow.AddMinutes(-5) } },
                 { "GOOGL", new StockPriceDto { Symbol = "GOOGL", Price = 142.50, Change = -1.25, ChangePercent = -0.87, LastUpdated = DateTime.UtcNow.AddMinutes(-3) } },
                 { "MSFT", new StockPriceDto { Symbol = "MSFT", Price = 378.90, Change = 5.67, ChangePercent = 1.52, LastUpdated = DateTime.UtcNow.AddMinutes(-7) } },
@@ -39,11 +40,41 @@ namespace StockTradePro.BlazorUI.Services.Mocks
                 { "NFLX", new StockPriceDto { Symbol = "NFLX", Price = 445.60, Change = -5.40, ChangePercent = -1.20, LastUpdated = DateTime.UtcNow.AddMinutes(-8) } },
                 { "AMD", new StockPriceDto { Symbol = "AMD", Price = 118.75, Change = 3.25, ChangePercent = 2.81, LastUpdated = DateTime.UtcNow.AddMinutes(-9) } },
                 { "INTC", new StockPriceDto { Symbol = "INTC", Price = 35.20, Change = 0.85, ChangePercent = 2.47, LastUpdated = DateTime.UtcNow.AddMinutes(-10) } },
+                
+                // Financial
                 { "JPM", new StockPriceDto { Symbol = "JPM", Price = 147.85, Change = 2.15, ChangePercent = 1.48, LastUpdated = DateTime.UtcNow.AddMinutes(-11) } },
+                { "BAC", new StockPriceDto { Symbol = "BAC", Price = 32.45, Change = 0.67, ChangePercent = 2.11, LastUpdated = DateTime.UtcNow.AddMinutes(-12) } },
+                { "WFC", new StockPriceDto { Symbol = "WFC", Price = 46.78, Change = -0.89, ChangePercent = -1.87, LastUpdated = DateTime.UtcNow.AddMinutes(-13) } },
+                { "GS", new StockPriceDto { Symbol = "GS", Price = 368.90, Change = 8.45, ChangePercent = 2.34, LastUpdated = DateTime.UtcNow.AddMinutes(-5) } },
                 { "V", new StockPriceDto { Symbol = "V", Price = 226.75, Change = 3.20, ChangePercent = 1.43, LastUpdated = DateTime.UtcNow.AddMinutes(-12) } },
+                
+                // Healthcare
                 { "JNJ", new StockPriceDto { Symbol = "JNJ", Price = 162.35, Change = 1.45, ChangePercent = 0.90, LastUpdated = DateTime.UtcNow.AddMinutes(-13) } },
+                { "PFE", new StockPriceDto { Symbol = "PFE", Price = 35.82, Change = -0.55, ChangePercent = -1.51, LastUpdated = DateTime.UtcNow.AddMinutes(-8) } },
+                { "UNH", new StockPriceDto { Symbol = "UNH", Price = 512.90, Change = 4.85, ChangePercent = 0.96, LastUpdated = DateTime.UtcNow.AddMinutes(-2) } },
+                { "ABBV", new StockPriceDto { Symbol = "ABBV", Price = 151.25, Change = 2.35, ChangePercent = 1.58, LastUpdated = DateTime.UtcNow.AddMinutes(-6) } },
+                { "MRK", new StockPriceDto { Symbol = "MRK", Price = 116.75, Change = 0.95, ChangePercent = 0.82, LastUpdated = DateTime.UtcNow.AddMinutes(-10) } },
+                
+                // Energy
+                { "XOM", new StockPriceDto { Symbol = "XOM", Price = 102.45, Change = -1.85, ChangePercent = -1.77, LastUpdated = DateTime.UtcNow.AddMinutes(-15) } },
+                { "CVX", new StockPriceDto { Symbol = "CVX", Price = 163.20, Change = -2.45, ChangePercent = -1.48, LastUpdated = DateTime.UtcNow.AddMinutes(-14) } },
+                { "COP", new StockPriceDto { Symbol = "COP", Price = 112.85, Change = -0.95, ChangePercent = -0.83, LastUpdated = DateTime.UtcNow.AddMinutes(-16) } },
+                
+                // Consumer
                 { "KO", new StockPriceDto { Symbol = "KO", Price = 61.75, Change = 0.45, ChangePercent = 0.73, LastUpdated = DateTime.UtcNow.AddMinutes(-14) } },
-                { "DIS", new StockPriceDto { Symbol = "DIS", Price = 101.25, Change = -1.45, ChangePercent = -1.41, LastUpdated = DateTime.UtcNow.AddMinutes(-15) } }
+                { "PEP", new StockPriceDto { Symbol = "PEP", Price = 173.25, Change = 1.85, ChangePercent = 1.08, LastUpdated = DateTime.UtcNow.AddMinutes(-12) } },
+                { "WMT", new StockPriceDto { Symbol = "WMT", Price = 162.45, Change = 2.35, ChangePercent = 1.47, LastUpdated = DateTime.UtcNow.AddMinutes(-11) } },
+                { "PG", new StockPriceDto { Symbol = "PG", Price = 149.85, Change = 0.95, ChangePercent = 0.64, LastUpdated = DateTime.UtcNow.AddMinutes(-9) } },
+                
+                // Industrial & Others
+                { "BA", new StockPriceDto { Symbol = "BA", Price = 206.75, Change = -3.85, ChangePercent = -1.83, LastUpdated = DateTime.UtcNow.AddMinutes(-4) } },
+                { "CAT", new StockPriceDto { Symbol = "CAT", Price = 267.45, Change = 4.25, ChangePercent = 1.61, LastUpdated = DateTime.UtcNow.AddMinutes(-3) } },
+                { "GE", new StockPriceDto { Symbol = "GE", Price = 115.20, Change = 2.45, ChangePercent = 2.17, LastUpdated = DateTime.UtcNow.AddMinutes(-2) } },
+                { "DIS", new StockPriceDto { Symbol = "DIS", Price = 101.25, Change = -1.45, ChangePercent = -1.41, LastUpdated = DateTime.UtcNow.AddMinutes(-15) } },
+                { "NKE", new StockPriceDto { Symbol = "NKE", Price = 107.85, Change = 2.15, ChangePercent = 2.03, LastUpdated = DateTime.UtcNow.AddMinutes(-8) } },
+                { "MCD", new StockPriceDto { Symbol = "MCD", Price = 268.75, Change = 1.85, ChangePercent = 0.69, LastUpdated = DateTime.UtcNow.AddMinutes(-6) } },
+                { "SBUX", new StockPriceDto { Symbol = "SBUX", Price = 108.45, Change = -0.95, ChangePercent = -0.87, LastUpdated = DateTime.UtcNow.AddMinutes(-7) } },
+                { "HD", new StockPriceDto { Symbol = "HD", Price = 342.85, Change = 5.25, ChangePercent = 1.56, LastUpdated = DateTime.UtcNow.AddMinutes(-5) } }
             };
         }
 

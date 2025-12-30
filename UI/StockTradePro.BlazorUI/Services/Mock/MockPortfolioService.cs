@@ -28,16 +28,20 @@ namespace StockTradePro.BlazorUI.Services.Mocks
         {
             return new Dictionary<string, double>
             {
-                { "AAPL", 175.25 },
-                { "GOOGL", 142.50 },
-                { "MSFT", 378.90 },
-                { "AMZN", 145.75 },
-                { "TSLA", 248.50 },
-                { "META", 325.80 },
-                { "NVDA", 875.25 },
-                { "NFLX", 445.60 },
-                { "AMD", 118.75 },
-                { "INTC", 35.20 }
+                // Tech
+                { "AAPL", 175.25 }, { "GOOGL", 142.50 }, { "MSFT", 378.90 }, { "AMZN", 145.75 }, { "TSLA", 248.50 },
+                { "META", 325.80 }, { "NVDA", 875.25 }, { "NFLX", 445.60 }, { "AMD", 118.75 }, { "INTC", 35.20 },
+                // Financial
+                { "JPM", 147.85 }, { "BAC", 32.45 }, { "WFC", 46.78 }, { "GS", 368.90 }, { "V", 226.75 },
+                // Healthcare
+                { "JNJ", 162.35 }, { "PFE", 35.82 }, { "UNH", 512.90 }, { "ABBV", 151.25 }, { "MRK", 116.75 },
+                // Energy
+                { "XOM", 102.45 }, { "CVX", 163.20 }, { "COP", 112.85 },
+                // Consumer
+                { "KO", 61.75 }, { "PEP", 173.25 }, { "WMT", 162.45 }, { "PG", 149.85 },
+                // Industrial & Others
+                { "BA", 206.75 }, { "CAT", 267.45 }, { "GE", 115.20 },
+                { "DIS", 101.25 }, { "NKE", 107.85 }, { "MCD", 268.75 }, { "SBUX", 108.45 }, { "HD", 342.85 }
             };
         }
 
