@@ -9,21 +9,34 @@ namespace StockTradePro.BlazorUI.Services
         private readonly HttpClient _httpClient;
         private readonly JsonSerializerOptions _jsonOptions;
         private readonly ILogger<WatchlistService> _logger;
+        private readonly IAuthService _authService;
 
-        public WatchlistService(HttpClient httpClient, ILogger<WatchlistService> logger)
+        public WatchlistService(HttpClient httpClient, ILogger<WatchlistService> logger, IAuthService authService)
         {
             _httpClient = httpClient;
             _logger = logger;
+            _authService = authService;
             _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             };
         }
 
+        private async Task AddAuthHeader()
+        {
+            var token = await _authService.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = 
+                    new System.Net.Http.Headers.AuthenticationHeaderValue(ServiceConstants.Auth.BearerScheme, token);
+            }
+        }
+
         public async Task<List<WatchlistDto>> GetWatchlistsAsync()
         {
             try
             {
+                await AddAuthHeader();
                 var response = await _httpClient.GetAsync(ServiceConstants.ApiEndpoints.GetWatchlists);
                 if (response.IsSuccessStatusCode)
                 {
@@ -46,6 +59,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.GetWatchlist, id);
                 var response = await _httpClient.GetAsync(endpoint);
                 if (response.IsSuccessStatusCode)
@@ -65,6 +79,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var json = JsonSerializer.Serialize(createDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -86,6 +101,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var json = JsonSerializer.Serialize(updateDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.UpdateWatchlist, id);
@@ -108,6 +124,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.DeleteWatchlist, id);
                 var response = await _httpClient.DeleteAsync(endpoint);
                 return response.IsSuccessStatusCode;
@@ -123,6 +140,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.GetWatchlistItems, watchlistId);
                 var response = await _httpClient.GetAsync(endpoint);
                 if (response.IsSuccessStatusCode)
@@ -142,6 +160,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var json = JsonSerializer.Serialize(addDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.AddWatchlistItem, watchlistId);
@@ -164,6 +183,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.DeleteWatchlistItem, watchlistId, itemId);
                 var response = await _httpClient.DeleteAsync(endpoint);
                 return response.IsSuccessStatusCode;
@@ -179,6 +199,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var json = JsonSerializer.Serialize(sortOrder, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.UpdateItemSortOrder, watchlistId, itemId);
@@ -197,6 +218,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.GetPriceAlerts, watchlistId);
                 var response = await _httpClient.GetAsync(endpoint);
                 if (response.IsSuccessStatusCode)
@@ -216,6 +238,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.GetPriceAlert, watchlistId, alertId);
                 var response = await _httpClient.GetAsync(endpoint);
                 if (response.IsSuccessStatusCode)
@@ -235,6 +258,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var json = JsonSerializer.Serialize(createDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.CreatePriceAlert, watchlistId);
@@ -257,6 +281,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.DeletePriceAlert, watchlistId, alertId);
                 var response = await _httpClient.DeleteAsync(endpoint);
                 return response.IsSuccessStatusCode;
@@ -272,6 +297,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.DisablePriceAlert, watchlistId, alertId);
                 var response = await _httpClient.PatchAsync(endpoint, null);
                 return response.IsSuccessStatusCode;
@@ -285,6 +311,7 @@ namespace StockTradePro.BlazorUI.Services
 
         public async Task<List<PriceAlertDto>> GetActiveAlertsAsync()
         {
+            await AddAuthHeader();
             // For now, return empty list - we'll implement this when we have active alerts logic
             await Task.CompletedTask;
             return new List<PriceAlertDto>();

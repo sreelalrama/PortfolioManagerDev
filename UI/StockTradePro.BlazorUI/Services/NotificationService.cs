@@ -9,21 +9,34 @@ namespace StockTradePro.BlazorUI.Services
         private readonly HttpClient _httpClient;
         private readonly JsonSerializerOptions _jsonOptions;
         private readonly ILogger<NotificationService> _logger;
+        private readonly IAuthService _authService;
 
-        public NotificationService(HttpClient httpClient, ILogger<NotificationService> logger)
+        public NotificationService(HttpClient httpClient, ILogger<NotificationService> logger, IAuthService authService)
         {
             _httpClient = httpClient;
             _logger = logger;
+            _authService = authService;
             _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             };
         }
 
+        private async Task AddAuthHeader()
+        {
+            var token = await _authService.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = 
+                    new System.Net.Http.Headers.AuthenticationHeaderValue(ServiceConstants.Auth.BearerScheme, token);
+            }
+        }
+
         public async Task<List<NotificationDto>> GetNotificationsAsync(int page = 1, int pageSize = 20)
         {
             try
             {
+                await AddAuthHeader();
                 var response = await _httpClient.GetAsync($"{ServiceConstants.ApiEndpoints.GetNotifications}?page={page}&pageSize={pageSize}");
                 if (response.IsSuccessStatusCode)
                 {
@@ -42,6 +55,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.GetNotification, id);
                 var response = await _httpClient.GetAsync(endpoint);
                 if (response.IsSuccessStatusCode)
@@ -61,6 +75,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var json = JsonSerializer.Serialize(createDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -82,6 +97,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.DeleteNotification, id);
                 var response = await _httpClient.DeleteAsync(endpoint);
                 return response.IsSuccessStatusCode;
@@ -97,6 +113,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.MarkNotificationRead, id);
                 var response = await _httpClient.PatchAsync(endpoint, null);
                 return response.IsSuccessStatusCode;
@@ -112,6 +129,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var response = await _httpClient.PatchAsync(ServiceConstants.ApiEndpoints.MarkAllNotificationsRead, null);
                 return response.IsSuccessStatusCode;
             }
@@ -126,6 +144,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var response = await _httpClient.GetAsync(ServiceConstants.ApiEndpoints.GetUnreadCount);
                 if (response.IsSuccessStatusCode)
                 {
@@ -144,6 +163,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var response = await _httpClient.GetAsync(ServiceConstants.ApiEndpoints.GetNotificationPreferences);
                 if (response.IsSuccessStatusCode)
                 {
@@ -162,6 +182,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.GetNotificationPreference, (int)type);
                 var response = await _httpClient.GetAsync(endpoint);
                 if (response.IsSuccessStatusCode)
@@ -181,6 +202,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var json = JsonSerializer.Serialize(updateDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var endpoint = string.Format(ServiceConstants.ApiEndpoints.UpdateNotificationPreference, (int)type);
@@ -203,6 +225,7 @@ namespace StockTradePro.BlazorUI.Services
         {
             try
             {
+                await AddAuthHeader();
                 var response = await _httpClient.PostAsync(ServiceConstants.ApiEndpoints.InitializePreferences, null);
                 return response.IsSuccessStatusCode;
             }
