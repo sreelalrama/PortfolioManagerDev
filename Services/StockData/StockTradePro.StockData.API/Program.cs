@@ -106,18 +106,34 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<StockDataDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    try
-    {
-        // Apply migrations
-        context.Database.Migrate();
-        Log.Information("Stock Data database migrations applied successfully");
+    int maxRetries = 10;
+    int retryCount = 0;
 
-        // Seed data
-        await StockSeeder.SeedAsync(context, logger);
-    }
-    catch (Exception ex)
+    while (retryCount < maxRetries)
     {
-        logger.LogError(ex, "An error occurred while migrating or seeding the Stock Data database.");
+        try
+        {
+            // Apply migrations
+            context.Database.Migrate();
+            Log.Information("Stock Data database migrations applied successfully");
+
+            // Seed data
+            await StockSeeder.SeedAsync(context, logger);
+            break;
+        }
+        catch (Exception ex)
+        {
+            retryCount++;
+            if (retryCount >= maxRetries)
+            {
+                logger.LogError(ex, "Failed to migrate StockData database after {MaxRetries} attempts.", maxRetries);
+                throw;
+            }
+            
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount));
+            logger.LogWarning(ex, "Failed to migrate StockData database. Attempt {RetryCount} of {MaxRetries}. Retrying in {Delay} seconds...", retryCount, maxRetries, delay.TotalSeconds);
+            Thread.Sleep(delay);
+        }
     }
 }
 

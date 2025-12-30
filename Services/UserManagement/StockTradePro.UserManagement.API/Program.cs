@@ -220,20 +220,36 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    try
-    {
-        // Apply migrations
-        context.Database.Migrate();
+    int maxRetries = 10;
+    int retryCount = 0;
 
-        // Seed admin user
-        await SeedAdminUser(userManager, roleManager);
-
-        Log.Information("Database migrations applied successfully");
-    }
-    catch (Exception ex)
+    while (retryCount < maxRetries)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating or seeding the database.");
+        try
+        {
+            // Apply migrations
+            context.Database.Migrate();
+
+            // Seed admin user
+            await SeedAdminUser(userManager, roleManager);
+
+            Log.Information("Database migrations applied successfully");
+            break;
+        }
+        catch (Exception ex)
+        {
+            retryCount++;
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            if (retryCount >= maxRetries)
+            {
+                logger.LogError(ex, "Failed to migrate UserManagement database after {MaxRetries} attempts.", maxRetries);
+                throw;
+            }
+            
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount));
+            logger.LogWarning(ex, "Failed to migrate UserManagement database. Attempt {RetryCount} of {MaxRetries}. Retrying in {Delay} seconds...", retryCount, maxRetries, delay.TotalSeconds);
+            Thread.Sleep(delay);
+        }
     }
 }
 

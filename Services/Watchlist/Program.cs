@@ -83,14 +83,30 @@ app.MapHealthChecks("/health");
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<WatchlistDbContext>();
-    try
+    int maxRetries = 10;
+    int retryCount = 0;
+
+    while (retryCount < maxRetries)
     {
-        context.Database.Migrate();
-        Console.WriteLine("Watchlist Service: Database migration completed successfully.");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Watchlist Service: Database migration failed: {ex.Message}");
+        try
+        {
+            context.Database.Migrate();
+            Console.WriteLine("Watchlist Service: Database migration completed successfully.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            retryCount++;
+            if (retryCount >= maxRetries)
+            {
+                Console.WriteLine($"Watchlist Service: Database migration failed after {maxRetries} attempts: {ex.Message}");
+                throw;
+            }
+            
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount));
+            Console.WriteLine($"Watchlist Service: Database migration failed. Attempt {retryCount} of {maxRetries}. Retrying in {delay.TotalSeconds} seconds... Error: {ex.Message}");
+            Thread.Sleep(delay);
+        }
     }
 }
 

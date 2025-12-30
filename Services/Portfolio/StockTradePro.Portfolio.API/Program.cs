@@ -164,19 +164,31 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    try
+    int maxRetries = 10;
+    int retryCount = 0;
+    
+    while (retryCount < maxRetries)
     {
-        // Apply migrations
-        context.Database.Migrate();
-        Log.Information("Portfolio database migrations applied successfully");
+        try
+        {
+            // Apply migrations
+            context.Database.Migrate();
+            Log.Information("Portfolio database migrations applied successfully");
+            break; // Success!
+        }
+        catch (Exception ex)
+        {
+            retryCount++;
+            if (retryCount >= maxRetries)
+            {
+                logger.LogError(ex, "Failed to migrate Portfolio database after {MaxRetries} attempts.", maxRetries);
+                throw; // Fail after all retries
+            }
 
-        // Seed initial data if needed
-        // await SeedInitialData(context, logger);
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "An error occurred while migrating the Portfolio database.");
-        throw; // Re-throw to prevent app from starting with corrupted data
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount));
+            logger.LogWarning(ex, "Failed to migrate Portfolio database. Attempt {RetryCount} of {MaxRetries}. Retrying in {Delay} seconds...", retryCount, maxRetries, delay.TotalSeconds);
+            Thread.Sleep(delay);
+        }
     }
 }
 

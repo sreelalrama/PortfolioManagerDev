@@ -9,17 +9,22 @@ namespace StockTradePro.NotificationService.API.Services
 {
     public class RabbitMQConsumer : IMessageConsumer
     {
-        private readonly RabbitMQ.Client.IConnection _connection;
-        private readonly RabbitMQ.Client.IModel _channel;
+        private RabbitMQ.Client.IConnection _connection;
+        private RabbitMQ.Client.IModel _channel;
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<RabbitMQConsumer> _logger;
+        private readonly IConfiguration _configuration;
 
         public RabbitMQConsumer(IConfiguration configuration, IServiceProvider serviceProvider, ILogger<RabbitMQConsumer> logger)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _configuration = configuration;
+        }
 
-            var rabbitMQSettings = configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>();
+        private void InitializeRabbitMQ()
+        {
+            var rabbitMQSettings = _configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>();
 
             var factory = new RabbitMQ.Client.ConnectionFactory()
             {
@@ -27,48 +32,72 @@ namespace StockTradePro.NotificationService.API.Services
                 Port = rabbitMQSettings.Port,
                 UserName = rabbitMQSettings.UserName,
                 Password = rabbitMQSettings.Password,
-                VirtualHost = rabbitMQSettings.VirtualHost
+                VirtualHost = rabbitMQSettings.VirtualHost,
+                DispatchConsumersAsync = true
             };
 
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
+            var retryCount = 0;
+            while (_connection == null && retryCount < 10)
+            {
+                try
+                {
+                    _connection = factory.CreateConnection();
+                    _channel = _connection.CreateModel();
 
-            // Declare exchange
-            _channel.ExchangeDeclare(
-                exchange: ExchangeNames.Notifications,
-                type: RabbitMQ.Client.ExchangeType.Topic,
-                durable: true);
+                    // Declare exchange
+                    _channel.ExchangeDeclare(
+                        exchange: ExchangeNames.Notifications,
+                        type: RabbitMQ.Client.ExchangeType.Topic,
+                        durable: true);
 
-            // Declare queues
-            _channel.QueueDeclare(
-                queue: QueueNames.PriceAlerts,
-                durable: true,
-                exclusive: false,
-                autoDelete: false);
+                    // Declare queues
+                    _channel.QueueDeclare(
+                        queue: QueueNames.PriceAlerts,
+                        durable: true,
+                        exclusive: false,
+                        autoDelete: false);
 
-            _channel.QueueDeclare(
-                queue: QueueNames.WatchlistUpdates,
-                durable: true,
-                exclusive: false,
-                autoDelete: false);
+                    _channel.QueueDeclare(
+                        queue: QueueNames.WatchlistUpdates,
+                        durable: true,
+                        exclusive: false,
+                        autoDelete: false);
 
-            // Bind queues to exchange
-            _channel.QueueBind(
-                queue: QueueNames.PriceAlerts,
-                exchange: ExchangeNames.Notifications,
-                routingKey: RoutingKeys.PriceAlert);
+                    // Bind queues to exchange
+                    _channel.QueueBind(
+                        queue: QueueNames.PriceAlerts,
+                        exchange: ExchangeNames.Notifications,
+                        routingKey: RoutingKeys.PriceAlert);
 
-            _channel.QueueBind(
-                queue: QueueNames.WatchlistUpdates,
-                exchange: ExchangeNames.Notifications,
-                routingKey: RoutingKeys.WatchlistUpdate);
+                    _channel.QueueBind(
+                        queue: QueueNames.WatchlistUpdates,
+                        exchange: ExchangeNames.Notifications,
+                        routingKey: RoutingKeys.WatchlistUpdate);
 
-            // Set QoS to process one message at a time
-            _channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+                    // Set QoS to process one message at a time
+                    _channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+                    
+                    _logger.LogInformation("Connected to RabbitMQ successfully");
+                }
+                catch (RabbitMQ.Client.Exceptions.BrokerUnreachableException)
+                {
+                    retryCount++;
+                    var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount));
+                    _logger.LogWarning("RabbitMQ not reachable. Retrying in {Delay} seconds...", delay.TotalSeconds);
+                    Thread.Sleep(delay);
+                }
+            }
+
+            if (_connection == null)
+            {
+                throw new Exception("Could not connect to RabbitMQ after multiple retries.");
+            }
         }
 
         public async Task StartConsumingAsync()
         {
+            InitializeRabbitMQ();
+
             // Start consuming price alerts
             var priceAlertConsumer = new RabbitMQ.Client.Events.EventingBasicConsumer(_channel);
             priceAlertConsumer.Received += async (model, ea) =>
