@@ -17,7 +17,6 @@ namespace StockTradePro.UserManagement.UnitTests.Controllers
     public class UsersControllerTests
     {
 
-
         private readonly Mock<IUserService> _mockUserService;
         private readonly Mock<ILogger<UsersController>> _mockLogger;
         private readonly UsersController _usersController;
