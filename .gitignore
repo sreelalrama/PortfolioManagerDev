@@ -4,3 +4,5 @@ _ReSharper.*
 bin
 obj
 packages
+# Ignore the entire .vs folder (recommended)
+.vs/
