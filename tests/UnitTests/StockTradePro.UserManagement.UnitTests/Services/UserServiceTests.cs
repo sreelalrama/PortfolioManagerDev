@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using StockTradePro.UserManagement.API.Models;
+using StockTradePro.UserManagement.API.Models.DTOs;
 using StockTradePro.UserManagement.API.Services;
 using System;
 using System.Collections.Generic;
@@ -88,21 +89,87 @@ namespace StockTradePro.UserManagement.UnitTests.Services
         }
 
         [Fact]
+        public async Task RegisterAsync_ShouldReturnFailure_WhenUserAlreadyExists()
+        {
+            // arrange
+            var registrationDto = new UserRegistrationDto { Email = "existing@StockTradePro.com" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(registrationDto.Email))
+                .ReturnsAsync(new ApplicationUser { Email = registrationDto.Email });
+
+            // act
+            var result = await _userService.RegisterAsync(registrationDto);
+
+            // assert
+            Assert.False(result.IsSuccess);
+            Assert.Contains("already exists", result.Message);
+            _mockUserManager.Verify(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
         public async Task LoginAsync_ShouldReturnSuccess_WhenCredentialsAreValid()
         {
-            
+            // arrange
+            var loginDto = new UserLoginDto { Email = "test@StockTradePro.com", Password = "Password123!" };
+            var user = new ApplicationUser { Id = "1", Email = loginDto.Email, IsActive = true };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email))
+                .ReturnsAsync(user);
+
+            _mockSignInManager.Setup(x => x.CheckPasswordSignInAsync(user, loginDto.Password, false))
+                .ReturnsAsync(SignInResult.Success);
+
+            _mockUserManager.Setup(x => x.GetRolesAsync(user))
+                .ReturnsAsync(new List<string> { "User" });
+
+            _mockTokenService.Setup(x => x.GenerateJwtTokenAsync(user))
+                .ReturnsAsync("valid-token");
+
+            // act
+            var result = await _userService.LoginAsync(loginDto);
+
+            // assert
+            Assert.True(result.IsSuccess);
+            Assert.Equal("valid-token", result.Token);
+            _mockUserManager.Verify(x => x.UpdateAsync(user), Times.Once); // Should update LastLoginAt
         }
 
         [Fact]
         public async Task LoginAsync_ShouldReturnFailure_WhenUserNotFound()
         {
-            
+            // Arrange
+            var loginDto = new UserLoginDto { Email = "nonexistent@StockTradePro.com", Password = "Password123!" };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email))
+                .ReturnsAsync((ApplicationUser)null);
+
+            // Act
+            var result = await _userService.LoginAsync(loginDto);
+
+            // Assert
+            Assert.False(result.IsSuccess);
+            Assert.Contains("Invalid email", result.Message);
         }
 
         [Fact]
         public async Task LoginAsync_ShouldReturnFailure_WhenPasswordIsInvalid()
         {
-            
+            // arrange
+            var loginDto = new UserLoginDto { Email = "test@StockTradePro.com", Password = "WrongPassword" };
+            var user = new ApplicationUser { Email = loginDto.Email, IsActive = true };
+
+            _mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email))
+                .ReturnsAsync(user);
+
+            _mockSignInManager.Setup(x => x.CheckPasswordSignInAsync(user, loginDto.Password, false))
+                .ReturnsAsync(SignInResult.Failed);
+
+            // Act
+            var result = await _userService.LoginAsync(loginDto);
+
+            // assert
+            Assert.False(result.IsSuccess);
+            Assert.Contains("Invalid email", result.Message);
         }
 
 
